@@ -1,306 +1,430 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Meurs</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; }
-    .card { border: 1px solid #ddd; border-radius: 10px; padding: 20px; }
-    .row { margin: 10px 0; }
-    input, button { padding: 8px; }
-    input { width: 100%; box-sizing: border-box; }
-    .tabs button { margin-right: 8px; }
-    .hidden { display: none; }
-    .icons { display: flex; gap: 24px; margin-top: 16px; }
-    .icon { text-align: center; cursor: pointer; user-select: none; padding: 8px 12px; border: 1px solid #eee; border-radius: 10px; }
-    audio, video { width: 100%; max-width: 480px; }
-    #chat-log { height: 220px; overflow-y: auto; border: 1px solid #eee; padding: 8px; border-radius: 8px; background: #fafafa; }
-    .chat-row { margin: 6px 0; }
-    .muted { color: #777; font-size: 0.9em; }
-    .row-inline > * { margin-right: 8px; }
-  </style>
+<meta charset="UTF-8" />
+<title>Meurs</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg:#ffffff; --fg:#111; --muted:#777; --card:#f7f7f7; --border:#e5e5e5; --accent:#3b82f6;
+    --radius:14px; --space:18px; --density:1;
+  }
+  [data-theme="dark"]{
+    --bg:#0b0e11; --fg:#f5f5f5; --muted:#a0a0a0; --card:#151a20; --border:#293241; --accent:#60a5fa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial}
+  a{color:var(--accent);text-decoration:none}
+  button{cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--fg);border-radius:10px;padding:10px 14px}
+  input,select{border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--fg);padding:10px}
+  .container{max-width:1000px;margin:0 auto;padding:calc(var(--space)*var(--density))}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:calc(var(--space)*var(--density))}
+  .row{margin:12px 0}
+  .hidden{display:none !important}
+  .muted{color:var(--muted)}
+  /* Top nav */
+  .nav{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--border);z-index:20}
+  .nav-inner{display:flex;align-items:center;gap:14px;justify-content:space-between;padding:10px 14px}
+  .brand{font-weight:800;letter-spacing:.3px}
+  .tabs{display:flex;gap:8px;align-items:center}
+  .tab{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid transparent}
+  .tab.active{border-color:var(--border);background:var(--card)}
+  .spacer{flex:1}
+  .pill{padding:8px 12px;border:1px solid var(--border);border-radius:999px;display:flex;align-items:center;gap:8px}
+  .icon{font-size:18px}
+  audio, video { width:100%; max-width:560px; border-radius:12px; }
+  /* Auth box center */
+  .center{display:grid;place-items:center;min-height:60vh}
+  /* Profile drawer */
+  .drawer{position:fixed;right:16px;top:64px;max-width:360px;width:92vw;background:var(--bg);border:1px solid var(--border);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:16px;z-index:50}
+  /* Chat */
+  #chat-log{height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;background:var(--bg);padding:10px}
+  .chat-row{margin:8px 0}
+  /* Grid on Home */
+  .grid{display:grid;gap:16px}
+  @media(min-width:900px){ .grid-2{grid-template-columns:1fr 1fr} }
+</style>
 </head>
 <body>
 
-  <h1>Welcome to Meurs</h1>
-
-  <!-- AUTH CARD -->
-  <div id="auth-card" class="card">
+<!-- NAVBAR -->
+<div class="nav">
+  <div class="nav-inner container">
+    <div class="brand">MEURS</div>
     <div class="tabs">
-      <button id="tab-login">Login</button>
-      <button id="tab-signup">Sign up</button>
+      <button class="tab" data-route="home"><span class="icon">🏠</span>Home</button>
+      <button class="tab" data-route="dashboard"><span class="icon">📊</span>Dashboard</button>
+      <button class="tab" data-route="games"><span class="icon">🎮</span>Games</button>
+      <button class="tab" data-route="about"><span class="icon">ℹ️</span>About</button>
     </div>
-    <div id="login-form">
-      <div class="row"><input id="login-username" placeholder="Username" /></div>
-      <div class="row"><input id="login-password" type="password" placeholder="Password" /></div>
-      <button id="login-btn">Login</button>
+    <div class="spacer"></div>
+    <button id="profileBtn" class="pill"><span class="icon">👤</span><span id="profileName">Guest</span></button>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- AUTH -->
+  <div id="auth" class="center">
+    <div class="card" style="width:min(560px, 92vw)">
+      <h2>Welcome to Meurs</h2>
+      <div class="row">
+        <div class="tabs">
+          <button id="tab-login" class="tab active">Login</button>
+          <button id="tab-signup" class="tab">Sign up</button>
+        </div>
+      </div>
+      <div id="login-form">
+        <div class="row"><input id="login-username" placeholder="Username" /></div>
+        <div class="row"><input id="login-password" type="password" placeholder="Password" /></div>
+        <button id="login-btn">Login</button>
+      </div>
+      <div id="signup-form" class="hidden">
+        <div class="row"><input id="signup-username" placeholder="Username" /></div>
+        <div class="row"><input id="signup-password" type="password" placeholder="Password" /></div>
+        <button id="signup-btn">Create account</button>
+      </div>
+      <div id="auth-msg" class="row muted"></div>
     </div>
-    <div id="signup-form" class="hidden">
-      <div class="row"><input id="signup-username" placeholder="Username" /></div>
-      <div class="row"><input id="signup-password" type="password" placeholder="Password" /></div>
-      <button id="signup-btn">Create account</button>
-    </div>
-    <div id="auth-msg" class="row"></div>
   </div>
 
-  <!-- DASHBOARD -->
-  <div id="dashboard" class="hidden">
-    <h2>Dashboard</h2>
-    <div class="icons">
-      <div class="icon" id="open-music">🎵<div>Music</div></div>
-      <div class="icon" id="open-videos">🎬<div>Videos</div></div>
-      <div class="icon" id="open-comuni">💬<div>Comuni</div></div>
-    </div>
-    <div id="content-area" class="card" style="margin-top:16px;"></div>
+  <!-- APP PAGES -->
+  <div id="app" class="hidden">
+    <div id="page"></div>
   </div>
+
+</div>
+
+<!-- PROFILE / SETTINGS DRAWER -->
+<div id="profileDrawer" class="drawer hidden">
+  <h3 style="margin:6px 0">Profile</h3>
+  <div class="muted" id="profileUserLine">Signed in as </div>
+
+  <hr class="row" style="border:none;border-top:1px solid var(--border)">
+
+  <h4 style="margin:6px 0">Customize UI</h4>
+  <div class="row">
+    <label>Theme:
+      <select id="themeSelect">
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+      </select>
+    </label>
+  </div>
+  <div class="row">
+    <label>Accent:
+      <select id="accentSelect">
+        <option value="#3b82f6">Blue</option>
+        <option value="#10b981">Green</option>
+        <option value="#f59e0b">Amber</option>
+        <option value="#ef4444">Red</option>
+        <option value="#a855f7">Purple</option>
+      </select>
+    </label>
+  </div>
+  <div class="row">
+    <label>Density:
+      <select id="densitySelect">
+        <option value="0.9">Compact</option>
+        <option value="1" selected>Cozy</option>
+        <option value="1.15">Comfy</option>
+      </select>
+    </label>
+  </div>
+  <div class="row">
+    <button id="closeDrawer">Close</button>
+  </div>
+
+  <div class="muted" style="font-size:.9em">Tip: Your choices are saved to this browser (localStorage).</div>
+</div>
 
 <script>
 const API = "/api";
 const STATIC_BASE = "/static";
 
+/* ---------- Theme persistence ---------- */
+(function loadPrefs(){
+  const theme = localStorage.getItem("meurs_theme") || "light";
+  const accent = localStorage.getItem("meurs_accent") || "#3b82f6";
+  const density = localStorage.getItem("meurs_density") || "1";
+  if(theme==="dark") document.documentElement.setAttribute("data-theme","dark");
+  document.documentElement.style.setProperty("--accent", accent);
+  document.documentElement.style.setProperty("--density", density);
+})();
+
+/* ---------- State ---------- */
 let currentUser = null;
+let ws = null, joinedRoom = null, isOwner = false;
 
-// Tabs
-const loginForm = document.getElementById("login-form");
-const signupForm = document.getElementById("signup-form");
-document.getElementById("tab-login").onclick  = () => { loginForm.classList.remove("hidden"); signupForm.classList.add("hidden"); };
-document.getElementById("tab-signup").onclick = () => { signupForm.classList.remove("hidden"); loginForm.classList.add("hidden"); };
+/* ---------- Helpers ---------- */
+const qs = s => document.querySelector(s);
+const qsa = s => [...document.querySelectorAll(s)];
+const setActiveTab = route => {
+  qsa(".tab[data-route]").forEach(b=>b.classList.toggle("active", b.dataset.route===route));
+};
+const notify = (t, ok=false) => { const el = qs("#auth-msg"); el.style.color = ok? "var(--accent)" : "var(--muted)"; el.textContent = t; };
 
-const msg = (t, ok=false) => {
-  const el = document.getElementById("auth-msg");
-  el.style.color = ok ? "green" : "crimson";
-  el.textContent = t;
+/* ---------- Auth switching ---------- */
+qs("#tab-login").onclick = () => { qs("#tab-login").classList.add("active"); qs("#tab-signup").classList.remove("active"); qs("#login-form").classList.remove("hidden"); qs("#signup-form").classList.add("hidden"); };
+qs("#tab-signup").onclick = () => { qs("#tab-signup").classList.add("active"); qs("#tab-login").classList.remove("active"); qs("#signup-form").classList.remove("hidden"); qs("#login-form").classList.add("hidden"); };
+
+/* ---------- Signup ---------- */
+qs("#signup-btn").onclick = async () => {
+  const username = qs("#signup-username").value.trim();
+  const password = qs("#signup-password").value;
+  if(!username||!password) return notify("Enter username & password");
+  const r = await fetch(`${API}/signup`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password})});
+  const d = await r.json(); if(!r.ok) return notify(d.detail||"Sign up failed");
+  notify("Account created. You can log in now.",true);
+  qs("#tab-login").click();
 };
 
-// SIGNUP
-document.getElementById("signup-btn").onclick = async () => {
-  const username = document.getElementById("signup-username").value.trim();
-  const password = document.getElementById("signup-password").value;
-  if (!username || !password) return msg("Enter username and password");
-  try {
-    const res = await fetch(`${API}/signup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password })});
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Sign up failed");
-    msg("Account created. You can log in now.", true);
-    document.getElementById("tab-login").click();
-  } catch (e) { msg(e.message); }
+/* ---------- Login ---------- */
+qs("#login-btn").onclick = async () => {
+  const username = qs("#login-username").value.trim();
+  const password = qs("#login-password").value;
+  if(!username||!password) return notify("Enter username & password");
+  const r = await fetch(`${API}/login`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password})});
+  const d = await r.json(); if(!r.ok) return notify(d.detail||"Login failed");
+  currentUser = username;
+  qs("#profileName").textContent = currentUser;
+  qs("#profileUserLine").textContent = `Signed in as ${currentUser}`;
+  qs("#auth").classList.add("hidden");
+  qs("#app").classList.remove("hidden");
+  // default route
+  routeTo("home");
 };
 
-// LOGIN
-document.getElementById("login-btn").onclick = async () => {
-  const username = document.getElementById("login-username").value.trim();
-  const password = document.getElementById("login-password").value;
-  if (!username || !password) return msg("Enter username and password");
-  try {
-    const res = await fetch(`${API}/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password })});
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Login failed");
-    currentUser = username;
-    document.getElementById("auth-card").classList.add("hidden");
-    document.getElementById("dashboard").classList.remove("hidden");
-    msg("");
-  } catch (e) { msg(e.message); }
+/* ---------- Router ---------- */
+qsa(".tab[data-route]").forEach(btn=>{
+  btn.addEventListener("click", ()=>routeTo(btn.dataset.route));
+});
+
+function routeTo(route){
+  setActiveTab(route);
+  const page = qs("#page");
+  if(route==="home") renderHome(page);
+  else if(route==="dashboard") renderDashboard(page);
+  else if(route==="games") renderGames(page);
+  else if(route==="about") renderAbout(page);
+}
+
+/* ---------- Profile / Settings ---------- */
+qs("#profileBtn").onclick = ()=> { qs("#profileDrawer").classList.toggle("hidden"); };
+qs("#closeDrawer").onclick = ()=> qs("#profileDrawer").classList.add("hidden");
+qs("#themeSelect").onchange = e => {
+  const v = e.target.value; localStorage.setItem("meurs_theme", v);
+  if(v==="dark") document.documentElement.setAttribute("data-theme","dark");
+  else document.documentElement.removeAttribute("data-theme");
+};
+qs("#accentSelect").onchange = e => {
+  const v = e.target.value; localStorage.setItem("meurs_accent", v); document.documentElement.style.setProperty("--accent", v);
+};
+qs("#densitySelect").onchange = e => {
+  const v = e.target.value; localStorage.setItem("meurs_density", v); document.documentElement.style.setProperty("--density", v);
 };
 
-// MUSIC
-document.getElementById("open-music").onclick = async () => {
-  const box = document.getElementById("content-area");
-  box.innerHTML = "<h3>Music</h3>";
-  const res = await fetch(`${API}/music`);
-  const data = await res.json();
-  if (!Array.isArray(data.music)) { box.textContent = "No music found"; return; }
-  data.music.forEach(file => {
-    const p = document.createElement("p"); p.textContent = file; box.appendChild(p);
-    const audio = document.createElement("audio"); audio.controls = true;
-    audio.src = `${STATIC_BASE}/music/${encodeURIComponent(file)}`;
-    box.appendChild(audio);
-  });
-};
-
-// VIDEOS
-document.getElementById("open-videos").onclick = async () => {
-  const box = document.getElementById("content-area");
-  box.innerHTML = "<h3>Videos</h3>";
-  const res = await fetch(`${API}/videos`);
-  const data = await res.json();
-  if (!Array.isArray(data.videos)) { box.textContent = "No videos found"; return; }
-  data.videos.forEach(file => {
-    const p = document.createElement("p"); p.textContent = file; box.appendChild(p);
-    const vid = document.createElement("video"); vid.controls = true;
-    vid.src = `${STATIC_BASE}/videos/${encodeURIComponent(file)}`;
-    box.appendChild(vid);
-  });
-};
-
-
-// ---------- COMUNI ----------
-let ws = null;
-let joinedRoom = null;
-let isOwner = false;
-
-document.getElementById("open-comuni").onclick = () => {
-  const box = document.getElementById("content-area");
-  box.innerHTML = `
-    <h3>Comuni</h3>
-    <div class="row row-inline">
-      <button id="btn-create">Create room</button>
-      <input id="join-id" placeholder="Enter room id (7 chars)" style="width: 240px;">
-      <button id="btn-join">Join room</button>
-    </div>
-    <div id="room-bar" class="row hidden">
-      <span>Room: <b id="room-id-label"></b></span>
-      <button id="btn-exit" style="margin-left:12px;">Exit</button>
-      <button id="btn-close" class="hidden" style="margin-left:8px;">Close room</button>
-    </div>
-    <div id="chat-area" class="hidden">
-      <div id="chat-log"></div>
-      <div class="row row-inline">
-        <input id="chat-text" placeholder="Type a message" style="flex:1;">
-        <button id="chat-send">Send</button>
+/* ---------- Pages ---------- */
+function renderHome(page){
+  page.innerHTML = `
+    <h2>Home</h2>
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Music</h3>
+        <div id="home-music">Loading…</div>
       </div>
-      <div class="row row-inline">
-        <input type="file" id="chat-file">
-        <button id="file-send">Send file</button>
+      <div class="card">
+        <h3>Videos</h3>
+        <div id="home-videos">Loading…</div>
+      </div>
+    </div>
+    <div class="row muted">Tip: You can move Music/Videos to Dashboard later if you prefer — we’ll add a toggle in settings.</div>
+  `;
+  loadMusic("#home-music");
+  loadVideos("#home-videos");
+}
+
+function renderDashboard(page){
+  page.innerHTML = `
+    <h2>Dashboard</h2>
+    <div class="card">
+      <h3>Comuni</h3>
+      <div class="row">
+        <button id="btn-create">Create room</button>
+        <input id="join-id" placeholder="Enter room id (7 chars)" style="width:240px">
+        <button id="btn-join">Join room</button>
+      </div>
+      <div id="room-bar" class="row hidden">
+        <span>Room: <b id="room-id-label"></b></span>
+        <button id="btn-exit" style="margin-left:12px;">Exit</button>
+        <button id="btn-close" class="hidden" style="margin-left:8px;">Close room</button>
+      </div>
+      <div id="chat-area" class="hidden">
+        <div id="chat-log"></div>
+        <div class="row" style="display:flex;gap:8px">
+          <textarea id="chat-text" placeholder="Type a message (Enter = send, Shift+Enter = newline)" rows="2" style="flex:1"></textarea>
+          <button id="chat-send">Send</button>
+        </div>
+        <div class="row" style="display:flex;gap:8px;align-items:center">
+          <input type="file" id="chat-file">
+          <button id="file-send">Send file</button>
+        </div>
       </div>
     </div>
   `;
+  wireComuni();
+}
 
-  const chatLogEl = () => document.getElementById("chat-log");
-  const clearLog  = () => { chatLogEl().innerHTML = ""; };
+function renderGames(page){
+  page.innerHTML = `
+    <h2>Games</h2>
+    <div class="card">
+      <p>This is a placeholder for mini-games (e.g., Tic-Tac-Toe, 2048, Snake). You can decide in <b>Profile → Customize UI</b> whether “Games” lives here as its own tab, or appears inside <b>Home</b> or <b>Dashboard</b>. For now it’s a separate tab.</p>
+      <p class="muted">Want me to drop in a quick Tic-Tac-Toe component next?</p>
+    </div>
+  `;
+}
 
-  const log = (html, muted=false) => {
-    const el = chatLogEl();
-    const row = document.createElement("div");
-    row.className = "chat-row" + (muted ? " muted" : "");
-    row.innerHTML = html;
-    el.appendChild(row);
-    el.scrollTop = el.scrollHeight;
-  };
+function renderAbout(page){
+  page.innerHTML = `
+    <h2>About</h2>
+    <div class="card">
+      <p><b>Meurs</b> is a personal media & communication hub. Play your local music/videos, and use <b>Comuni</b> to chat and share files directly via your server — no storage, just relay.</p>
+      <ul>
+        <li>Home: Music & Videos</li>
+        <li>Dashboard: Comuni rooms</li>
+        <li>Games: placeholder for your mini-games</li>
+        <li>Profile (top right): your username + UI customization</li>
+      </ul>
+    </div>
+  `;
+}
 
-  const renderHistory = (items) => {
-    clearLog();
-    (items || []).forEach(m => {
-      if (m.type === "chat") {
-        log(`<b>${m.from}:</b> ${m.text}`);
-      } else if (m.type === "file-header") {
-        log(`<i>${m.from} sent: ${m.filename}</i>`, true);
-      } else if (m.type === "system") {
-        log(`<i>${m.text}</i>`, true);
-      }
+/* ---------- Media loaders ---------- */
+async function loadMusic(sel){
+  const box = qs(sel); box.textContent = "Loading…";
+  try{
+    const r = await fetch(`${API}/music`); const d = await r.json();
+    if(!Array.isArray(d.music) || d.music.length===0){ box.textContent="No music found"; return; }
+    box.innerHTML = "";
+    d.music.forEach(file=>{
+      const wrap = document.createElement("div"); wrap.className="row";
+      wrap.innerHTML = `<div class="muted">${file}</div>`;
+      const a = document.createElement("audio"); a.controls = true; a.src = `${STATIC_BASE}/music/${encodeURIComponent(file)}`;
+      wrap.appendChild(a); box.appendChild(wrap);
     });
-  };
+  }catch(e){ box.textContent = "Failed to load music"; }
+}
 
-  const setJoined = (roomId, ownerFlag) => {
-    joinedRoom = roomId;
-    isOwner = !!ownerFlag;
-    document.getElementById("room-id-label").textContent = roomId;
-    document.getElementById("room-bar").classList.remove("hidden");
-    document.getElementById("chat-area").classList.remove("hidden");
-    document.getElementById("btn-close").classList.toggle("hidden", !isOwner);
-  };
+async function loadVideos(sel){
+  const box = qs(sel); box.textContent = "Loading…";
+  try{
+    const r = await fetch(`${API}/videos`); const d = await r.json();
+    if(!Array.isArray(d.videos) || d.videos.length===0){ box.textContent="No videos found"; return; }
+    box.innerHTML = "";
+    d.videos.forEach(file=>{
+      const wrap = document.createElement("div"); wrap.className="row";
+      wrap.innerHTML = `<div class="muted">${file}</div>`;
+      const v = document.createElement("video"); v.controls = true; v.src = `${STATIC_BASE}/videos/${encodeURIComponent(file)}`;
+      wrap.appendChild(v); box.appendChild(wrap);
+    });
+  }catch(e){ box.textContent = "Failed to load videos"; }
+}
 
-  const disconnect = () => {
-    if (ws) { try { ws.close(); } catch(_) {} ws = null; }
-    joinedRoom = null; isOwner = false;
-    document.getElementById("room-bar").classList.add("hidden");
-    document.getElementById("chat-area").classList.add("hidden");
-  };
+/* ---------- Comuni wiring ---------- */
+function wireComuni(){
+  const roomBar = qs("#room-bar");
+  const chatArea = qs("#chat-area");
+  const roomLabel = qs("#room-id-label");
+  const chatLog = qs("#chat-log");
+  const clearLog = ()=>{ chatLog.innerHTML = ""; };
+  const log = (html, muted=false)=>{ const row=document.createElement("div"); row.className="chat-row"+(muted?" muted":""); row.innerHTML=html; chatLog.appendChild(row); chatLog.scrollTop=chatLog.scrollHeight; };
+  const renderHistory = items => { clearLog(); (items||[]).forEach(m=>{ if(m.type==="chat") log(`<b>${m.from}:</b> ${m.text}`); else if(m.type==="file-header") log(`<i>${m.from} sent: ${m.filename}</i>`,true); else if(m.type==="system") log(`<i>${m.text}</i>`,true); }); };
 
-  const connectWS = (roomId) => {
-    const proto = location.protocol === "https:" ? "wss" : "ws";
+  let incomingFilename = null;
+
+  function setJoined(roomId, owner){
+    joinedRoom = roomId; isOwner = !!owner; roomLabel.textContent = roomId;
+    roomBar.classList.remove("hidden"); chatArea.classList.remove("hidden");
+    qs("#btn-close").classList.toggle("hidden", !isOwner);
+  }
+  function disconnect(){
+    if(ws){ try{ ws.close(); }catch{} ws=null; }
+    joinedRoom=null; isOwner=false; roomBar.classList.add("hidden"); chatArea.classList.add("hidden");
+  }
+
+  function connectWS(roomId){
+    const proto = location.protocol==="https:" ? "wss" : "ws";
     const url = `${proto}://${location.host}/ws/comuni/${encodeURIComponent(roomId)}?user=${encodeURIComponent(currentUser)}`;
     ws = new WebSocket(url);
-
-    ws.onopen = () => { console.log("WS open"); log(`<span class="muted">Connected.</span>`, true); };
-    ws.onclose = (e) => { console.log("WS close", e); log(`<span class="muted">Disconnected.</span>`, true); };
-    ws.onerror = (e) => { console.log("WS error", e); log(`<span class="muted">WS error.</span>`, true); };
-
-    ws.onmessage = (ev) => {
-      if (typeof ev.data === "string") {
-        try {
+    ws.onopen  = ()=>log(`<span class="muted">Connected.</span>`,true);
+    ws.onclose = ()=>log(`<span class="muted">Disconnected.</span>`,true);
+    ws.onerror = ()=>log(`<span class="muted">WS error.</span>`,true);
+    ws.onmessage = ev => {
+      if(typeof ev.data === "string"){
+        try{
           const m = JSON.parse(ev.data);
-          if (m.type === "history")         renderHistory(m.items);
-          else if (m.type === "clear")      clearLog();
-          else if (m.type === "chat")       log(`<b>${m.from}:</b> ${m.text}`);
-          else if (m.type === "system")     log(`<i>${m.text}</i>`, true);
-          else if (m.type === "file-header")log(`<i>${m.from} is sending: ${m.filename}</i>`, true);
-        } catch { /* ignore parse errors */ }
-      } else {
-        // binary file payload
-        const blob = new Blob([ev.data]);
-        const url = URL.createObjectURL(blob);
-        log(`<a href="${url}" download>Download received file</a>`);
+          if(m.type==="history") renderHistory(m.items);
+          else if(m.type==="clear") clearLog();
+          else if(m.type==="chat") log(`<b>${m.from}:</b> ${m.text}`);
+          else if(m.type==="system") log(`<i>${m.text}</i>`,true);
+          else if(m.type==="file-header"){ incomingFilename=m.filename||"file.bin"; log(`<i>${m.from} is sending: ${m.filename}</i>`,true); }
+        }catch{}
+      }else{
+        const blob = new Blob([ev.data]); const url = URL.createObjectURL(blob);
+        const name = incomingFilename || "file.bin"; incomingFilename=null;
+        log(`<a href="${url}" download="${name}">Download: ${name}</a>`);
       }
     };
+  }
+
+  qs("#btn-create").onclick = async ()=>{
+    const r = await fetch(`${API}/comuni/rooms`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:currentUser})});
+    const d = await r.json(); if(!r.ok) return alert(d.detail||"Failed to create room");
+    setJoined(d.room_id, true); connectWS(d.room_id); wireSendHandlers();
   };
 
-  document.getElementById("btn-create").onclick = async () => {
-    if (!currentUser) return alert("Login first");
-    const res = await fetch(`${API}/comuni/rooms`, {
-      method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ username: currentUser })
-    });
-    const data = await res.json();
-    if (!res.ok) return alert(data.detail || "Failed to create room");
-    setJoined(data.room_id, true);
-    connectWS(data.room_id);
+  qs("#btn-join").onclick = async ()=>{
+    const id = qs("#join-id").value.trim(); if(!id) return alert("Enter room id");
+    const r = await fetch(`${API}/comuni/rooms/${encodeURIComponent(id)}/join`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:currentUser})});
+    const d = await r.json(); if(!r.ok) return alert(d.detail||"Failed to join");
+    setJoined(id, !!d.is_owner); connectWS(id); wireSendHandlers();
   };
 
-  document.getElementById("btn-join").onclick = async () => {
-    if (!currentUser) return alert("Login first");
-    const roomId = document.getElementById("join-id").value.trim();
-    if (!roomId) return alert("Enter room id");
-    const res = await fetch(`${API}/comuni/rooms/${encodeURIComponent(roomId)}/join`, {
-      method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ username: currentUser })
-    });
-    const data = await res.json();
-    if (!res.ok) return alert(data.detail || "Failed to join");
-    // Use server truth so creator regains Close button after re-joining
-    setJoined(roomId, !!data.is_owner);
-    connectWS(roomId);
-  };
+  qs("#btn-exit").onclick = disconnect;
 
-  document.getElementById("btn-exit").onclick = disconnect;
-
-  document.getElementById("btn-close").onclick = async () => {
-    // Try the server regardless of local flag; server enforces owner check
-    if (!joinedRoom) return;
-    const res = await fetch(`${API}/comuni/rooms/${encodeURIComponent(joinedRoom)}`, {
-      method: "DELETE", headers: { "Content-Type":"application/json" },
-      body: JSON.stringify({ username: currentUser })
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      alert(data.detail || "Failed to close room");
-      return;
-    }
+  qs("#btn-close").onclick = async ()=>{
+    if(!joinedRoom) return;
+    const r = await fetch(`${API}/comuni/rooms/${encodeURIComponent(joinedRoom)}`, {method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:currentUser})});
+    if(!r.ok){ const d = await r.json().catch(()=>({})); alert(d.detail||"Failed to close room"); return; }
     disconnect();
   };
 
-  // Send chat
-  document.getElementById("chat-send").onclick = () => {
-    const t = document.getElementById("chat-text").value;
-    if (!t) return;
-    if (!ws || ws.readyState !== 1) { log("<i>Not connected.</i>", true); return; }
-    ws.send(JSON.stringify({ type: "chat", text: t }));
-    // optimistic echo so you see it instantly
-    log(`<b>${currentUser}:</b> ${t}`);
-    document.getElementById("chat-text").value = "";
-  };
+  function wireSendHandlers(){
+    const input = qs("#chat-text");
+    const sendBtn = qs("#chat-send");
+    const fileBtn = qs("#file-send");
+    const fileInput = qs("#chat-file");
 
-  // Send file
-  document.getElementById("file-send").onclick = async () => {
-    if (!ws || ws.readyState !== 1) { log("<i>Not connected.</i>", true); return; }
-    const f = document.getElementById("chat-file").files[0];
-    if (!f) return alert("Choose a file first");
-    ws.send(JSON.stringify({ type: "file", filename: f.name }));
-    const buf = await f.arrayBuffer();
-    ws.send(buf);
-    log(`<i>You sent: ${f.name}</i>`, true);
-  };
-};
+    input.addEventListener("keydown", (e)=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendBtn.click(); }});
+    sendBtn.onclick = ()=>{
+      const t = input.value.trim(); if(!t) return;
+      if(!ws || ws.readyState!==1){ log("<i>Not connected.</i>",true); return; }
+      ws.send(JSON.stringify({type:"chat", text:t}));
+      input.value="";
+    };
+    fileBtn.onclick = async ()=>{
+      if(!ws || ws.readyState!==1){ log("<i>Not connected.</i>",true); return; }
+      const f = fileInput.files[0]; if(!f) return alert("Choose a file first");
+      ws.send(JSON.stringify({type:"file", filename:f.name}));
+      setTimeout(async ()=>{ const buf = await f.arrayBuffer(); ws.send(buf); }, 50);
+      log(`<i>You sent: ${f.name}</i>`, true);
+      fileInput.value="";
+    };
+  }
+}
+
+/* ---------- end ---------- */
 </script>
-
 </body>
 </html>
