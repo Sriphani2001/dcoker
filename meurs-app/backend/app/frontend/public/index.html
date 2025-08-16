@@ -16,7 +16,8 @@
   body{margin:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial}
   a{color:var(--accent);text-decoration:none}
   button{cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--fg);border-radius:10px;padding:10px 14px}
-  input,select{border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--fg);padding:10px}
+  input,select,textarea{border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--fg);padding:10px}
+  textarea{resize:vertical}
   .container{max-width:1000px;margin:0 auto;padding:calc(var(--space)*var(--density))}
   .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:calc(var(--space)*var(--density))}
   .row{margin:12px 0}
@@ -26,7 +27,7 @@
   .nav{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--border);z-index:20}
   .nav-inner{display:flex;align-items:center;gap:14px;justify-content:space-between;padding:10px 14px}
   .brand{font-weight:800;letter-spacing:.3px}
-  .tabs{display:flex;gap:8px;align-items:center}
+  .tabs{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .tab{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid transparent}
   .tab.active{border-color:var(--border);background:var(--card)}
   .spacer{flex:1}
@@ -43,6 +44,12 @@
   /* Grid on Home */
   .grid{display:grid;gap:16px}
   @media(min-width:900px){ .grid-2{grid-template-columns:1fr 1fr} }
+  /* Media list items */
+  .media-item{display:flex;gap:12px;align-items:center}
+  .thumb{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--border)}
+  .label{display:flex;flex-direction:column}
+  .label .title{font-weight:600}
+  .label .meta{font-size:.9em;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -75,13 +82,13 @@
         </div>
       </div>
       <div id="login-form">
-        <div class="row"><input id="login-username" placeholder="Username" /></div>
-        <div class="row"><input id="login-password" type="password" placeholder="Password" /></div>
+        <div class="row"><input id="login-username" placeholder="Username" autocomplete="username" /></div>
+        <div class="row"><input id="login-password" type="password" placeholder="Password" autocomplete="current-password" /></div>
         <button id="login-btn">Login</button>
       </div>
       <div id="signup-form" class="hidden">
-        <div class="row"><input id="signup-username" placeholder="Username" /></div>
-        <div class="row"><input id="signup-password" type="password" placeholder="Password" /></div>
+        <div class="row"><input id="signup-username" placeholder="Username" autocomplete="username" /></div>
+        <div class="row"><input id="signup-password" type="password" placeholder="Password" autocomplete="new-password" /></div>
         <button id="signup-btn">Create account</button>
       </div>
       <div id="auth-msg" class="row muted"></div>
@@ -131,7 +138,8 @@
       </select>
     </label>
   </div>
-  <div class="row">
+  <div class="row" style="display:flex;gap:8px;align-items:center">
+    <button id="logoutBtn">Log out</button>
     <button id="closeDrawer">Close</button>
   </div>
 
@@ -187,13 +195,26 @@ qs("#login-btn").onclick = async () => {
   const r = await fetch(`${API}/login`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username,password})});
   const d = await r.json(); if(!r.ok) return notify(d.detail||"Login failed");
   currentUser = username;
+  localStorage.setItem("meurs_user", currentUser);
   qs("#profileName").textContent = currentUser;
   qs("#profileUserLine").textContent = `Signed in as ${currentUser}`;
   qs("#auth").classList.add("hidden");
   qs("#app").classList.remove("hidden");
-  // default route
   routeTo("home");
 };
+
+/* ---------- Restore session (demo) ---------- */
+(function restoreUser(){
+  const u = localStorage.getItem("meurs_user");
+  if(u){
+    currentUser = u;
+    qs("#profileName").textContent = currentUser;
+    qs("#profileUserLine").textContent = `Signed in as ${currentUser}`;
+    qs("#auth").classList.add("hidden");
+    qs("#app").classList.remove("hidden");
+    routeTo("home");
+  }
+})();
 
 /* ---------- Router ---------- */
 qsa(".tab[data-route]").forEach(btn=>{
@@ -212,6 +233,14 @@ function routeTo(route){
 /* ---------- Profile / Settings ---------- */
 qs("#profileBtn").onclick = ()=> { qs("#profileDrawer").classList.toggle("hidden"); };
 qs("#closeDrawer").onclick = ()=> qs("#profileDrawer").classList.add("hidden");
+qs("#logoutBtn").onclick = ()=>{
+  localStorage.removeItem("meurs_user");
+  currentUser=null;
+  if(ws){try{ws.close()}catch{}}
+  qs("#app").classList.add("hidden");
+  qs("#auth").classList.remove("hidden");
+  notify("Logged out", true);
+};
 qs("#themeSelect").onchange = e => {
   const v = e.target.value; localStorage.setItem("meurs_theme", v);
   if(v==="dark") document.documentElement.setAttribute("data-theme","dark");
@@ -228,20 +257,56 @@ qs("#densitySelect").onchange = e => {
 function renderHome(page){
   page.innerHTML = `
     <h2>Home</h2>
-    <div class="grid grid-2">
-      <div class="card">
-        <h3>Music</h3>
-        <div id="home-music">Loading…</div>
+    <div class="card">
+      <div class="tabs" style="margin-bottom:8px">
+        <button class="tab active" id="tab-local">Local</button>
+        <button class="tab" id="tab-online">Online</button>
       </div>
-      <div class="card">
-        <h3>Videos</h3>
-        <div id="home-videos">Loading…</div>
+
+      <div id="pane-local">
+        <div class="grid grid-2">
+          <div>
+            <h3>Music</h3>
+            <div id="home-music">Loading…</div>
+          </div>
+          <div>
+            <h3>Videos</h3>
+            <div id="home-videos">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="pane-online" class="hidden">
+        <div class="row" style="display:flex; gap:8px; align-items:center">
+          <input id="search-q" placeholder="Search online… (e.g., 'lofi', 'nature')" style="flex:1">
+          <select id="provider">
+            <option value="audius">Audius (music)</option>
+            <option value="pixabay">Pixabay (videos)</option>
+          </select>
+          <button id="search-btn">Search</button>
+        </div>
+        <div id="online-results" class="row"></div>
       </div>
     </div>
-    <div class="row muted">Tip: You can move Music/Videos to Dashboard later if you prefer — we’ll add a toggle in settings.</div>
+    <div class="row muted">Tip: toggle Local/Online above. Online results stream via providers through your server.</div>
   `;
+
+  // tab wiring
+  const tabLocal = qs("#tab-local"), tabOnline = qs("#tab-online");
+  const paneLocal = qs("#pane-local"), paneOnline = qs("#pane-online");
+  tabLocal.onclick = ()=>{ tabLocal.classList.add("active"); tabOnline.classList.remove("active"); paneLocal.classList.remove("hidden"); paneOnline.classList.add("hidden"); };
+  tabOnline.onclick = ()=>{ tabOnline.classList.add("active"); tabLocal.classList.remove("active"); paneOnline.classList.remove("hidden"); paneLocal.classList.add("hidden"); };
+
+  // load local as before
   loadMusic("#home-music");
   loadVideos("#home-videos");
+
+  // search online
+  qs("#search-btn").onclick = async ()=>{
+    const q = qs("#search-q").value.trim() || "lofi";
+    const p = qs("#provider").value;
+    await searchOnline(p, q);
+  };
 }
 
 function renderDashboard(page){
@@ -249,10 +314,11 @@ function renderDashboard(page){
     <h2>Dashboard</h2>
     <div class="card">
       <h3>Comuni</h3>
-      <div class="row">
+      <div class="row" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
         <button id="btn-create">Create room</button>
         <input id="join-id" placeholder="Enter room id (7 chars)" style="width:240px">
         <button id="btn-join">Join room</button>
+        <button id="btn-copy" title="Copy room id" class="hidden">Copy room id</button>
       </div>
       <div id="room-bar" class="row hidden">
         <span>Room: <b id="room-id-label"></b></span>
@@ -291,7 +357,7 @@ function renderAbout(page){
     <div class="card">
       <p><b>Meurs</b> is a personal media & communication hub. Play your local music/videos, and use <b>Comuni</b> to chat and share files directly via your server — no storage, just relay.</p>
       <ul>
-        <li>Home: Music & Videos</li>
+        <li>Home: Music & Videos (Local + Online)</li>
         <li>Dashboard: Comuni rooms</li>
         <li>Games: placeholder for your mini-games</li>
         <li>Profile (top right): your username + UI customization</li>
@@ -300,7 +366,7 @@ function renderAbout(page){
   `;
 }
 
-/* ---------- Media loaders ---------- */
+/* ---------- Media loaders (Local) ---------- */
 async function loadMusic(sel){
   const box = qs(sel); box.textContent = "Loading…";
   try{
@@ -331,12 +397,55 @@ async function loadVideos(sel){
   }catch(e){ box.textContent = "Failed to load videos"; }
 }
 
+/* ---------- Media search (Online) ---------- */
+async function searchOnline(provider, q){
+  const box = qs("#online-results");
+  box.textContent = "Searching…";
+  try{
+    let url = provider==="audius"
+      ? `${API}/external/music/audius?q=${encodeURIComponent(q)}`
+      : `${API}/external/videos/pixabay?q=${encodeURIComponent(q)}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    const items = d.items || [];
+    if(!items.length){ box.textContent = "No results."; return; }
+    box.innerHTML = "";
+    for(const it of items){
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `
+        <div class="media-item">
+          ${it.thumb ? `<img class="thumb" src="${it.thumb}" alt="">` : ""}
+          <div class="label">
+            <div class="title">${escapeHtml(it.title || "Untitled")}${it.artist ? ` — <span class="meta">${escapeHtml(it.artist)}</span>` : ""}</div>
+            <div class="meta">${escapeHtml(it.source)}${it.license ? ` • ${escapeHtml(it.license)}` : ""}</div>
+          </div>
+        </div>
+      `;
+      if(provider==="audius"){
+        const a = document.createElement("audio"); a.controls = true; a.src = it.stream_url;
+        row.appendChild(a);
+      }else{
+        const v = document.createElement("video"); v.controls = true; v.src = it.stream_url;
+        row.appendChild(v);
+      }
+      box.appendChild(row);
+    }
+  }catch(e){
+    box.textContent = "Failed to load online results.";
+  }
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
 /* ---------- Comuni wiring ---------- */
 function wireComuni(){
   const roomBar = qs("#room-bar");
   const chatArea = qs("#chat-area");
   const roomLabel = qs("#room-id-label");
   const chatLog = qs("#chat-log");
+  const copyBtn = qs("#btn-copy");
   const clearLog = ()=>{ chatLog.innerHTML = ""; };
   const log = (html, muted=false)=>{ const row=document.createElement("div"); row.className="chat-row"+(muted?" muted":""); row.innerHTML=html; chatLog.appendChild(row); chatLog.scrollTop=chatLog.scrollHeight; };
   const renderHistory = items => { clearLog(); (items||[]).forEach(m=>{ if(m.type==="chat") log(`<b>${m.from}:</b> ${m.text}`); else if(m.type==="file-header") log(`<i>${m.from} sent: ${m.filename}</i>`,true); else if(m.type==="system") log(`<i>${m.text}</i>`,true); }); };
@@ -347,10 +456,12 @@ function wireComuni(){
     joinedRoom = roomId; isOwner = !!owner; roomLabel.textContent = roomId;
     roomBar.classList.remove("hidden"); chatArea.classList.remove("hidden");
     qs("#btn-close").classList.toggle("hidden", !isOwner);
+    copyBtn.classList.remove("hidden");
   }
   function disconnect(){
     if(ws){ try{ ws.close(); }catch{} ws=null; }
     joinedRoom=null; isOwner=false; roomBar.classList.add("hidden"); chatArea.classList.add("hidden");
+    copyBtn.classList.add("hidden");
   }
 
   function connectWS(roomId){
@@ -398,6 +509,14 @@ function wireComuni(){
     const r = await fetch(`${API}/comuni/rooms/${encodeURIComponent(joinedRoom)}`, {method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:currentUser})});
     if(!r.ok){ const d = await r.json().catch(()=>({})); alert(d.detail||"Failed to close room"); return; }
     disconnect();
+  };
+
+  copyBtn.onclick = async ()=>{
+    if(!joinedRoom) return;
+    try{
+      await navigator.clipboard.writeText(joinedRoom);
+      log("<i>Room id copied.</i>", true);
+    }catch{ alert("Copy failed"); }
   };
 
   function wireSendHandlers(){
