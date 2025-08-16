@@ -1,27 +1,25 @@
-# meurs-app/Dockerfile
+# Dockerfile at repo root (meurs-app/Dockerfile)
 FROM python:3.10-slim
 
-# ---- system deps (optional, but nice to have) ----
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl tini && rm -rf /var/lib/apt/lists/*
+# optional but nice
+RUN apt-get update && apt-get install -y --no-install-recommends tini && rm -rf /var/lib/apt/lists/*
 
-# ---- app ----
 WORKDIR /app
 
-# Copy only requirements first for better build caching
+# install deps first for cache
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
+# copy app code
 COPY backend ./backend
 
-# Create media dir inside container
+# ensure media dir exists
 RUN mkdir -p /app/media
 
-# Uvicorn runs from backend dir; app is a package inside backend/
+# make backend importable and set working dir
 ENV PYTHONPATH=/app/backend
 WORKDIR /app/backend
 
 EXPOSE 8000
 ENTRYPOINT ["/usr/bin/tini","--"]
-CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000","--proxy-headers"]
+CMD ["python","-m","uvicorn","app.main:app","--host","0.0.0.0","--port","8000","--proxy-headers"]

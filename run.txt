@@ -1,0 +1,31 @@
+
+
+# From PowerShell in meurs-app:
+............
+Build the image
+docker build -t meurs:latest .
+
+Run it (no persistence; container-local DB/media)
+docker run --rm -p 8000:8000 meurs:latest
+
+# from  wsl when ever chage code
+cd /opt/dcoker/meurs-app
+
+# Rebuild image
+DOCKER_BUILDKIT=0 docker build -t meurs:latest .
+
+# Relaunch compose (uses the prebuilt image)
+docker compose down
+docker compose up -d
+
+# Watch logs
+docker compose logs -f
+
+
+
+# From PowerShell in meurs-app/backend/app:
+.........
+uvicorn app.main:app --reload
+
+cd /backend/ uvicorn app.main:app --host 192.168.0.101 --port 8000
+
