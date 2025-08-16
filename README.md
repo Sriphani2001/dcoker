@@ -3,7 +3,6 @@
 **Meurs** is a FastAPI + WebSocket web app for **media playback** (music/videos) and **real-time communication** (chat + file relay).  
 It includes a simple authentication system, per-room chat memory, and a dashboard-style frontend.
 
----
 
 ## ✨ Features
 
