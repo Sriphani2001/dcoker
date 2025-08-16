@@ -1,0 +1,20 @@
+# meurs-app/docker-compose.yml
+services:
+  meurs:
+    build: .
+    container_name: meurs
+    ports:
+      - "8000:8000"
+    environment:
+      # Uncomment if you changed database.py to read DB_DIR
+      - DB_DIR=/data
+    volumes:
+      # Persist media (music/videos) outside the container
+      - media_data:/app/media
+      # Persist DB to a separate volume
+      - db_data:/data
+    restart: unless-stopped
+
+volumes:
+  media_data:
+  db_data:
