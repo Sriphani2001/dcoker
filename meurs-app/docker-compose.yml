@@ -6,6 +6,7 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - YT_API_KEY=${YT_API_KEY}
       - DB_DIR=/data             # only if you added this in database.py
     volumes:
       - media_data:/app/media
