@@ -21,5 +21,6 @@ ENV PYTHONPATH=/app/backend
 WORKDIR /app/backend
 
 EXPOSE 8000
+
 ENTRYPOINT ["/usr/bin/tini","--"]
-CMD ["python","-m","uvicorn","app.main:app","--host","0.0.0.0","--port","8000","--proxy-headers"]
+CMD ["sh","-c","python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"]
