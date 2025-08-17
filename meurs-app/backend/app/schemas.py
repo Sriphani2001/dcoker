@@ -11,3 +11,6 @@ class UserLogin(BaseModel):
 class PlaylistCreate(BaseModel):
     name: str
     media_type: str
+
+class UsernameBody(BaseModel):
+    username: str   
