@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]>=0.25
 sqlalchemy
 pydantic
 pydantic-settings
