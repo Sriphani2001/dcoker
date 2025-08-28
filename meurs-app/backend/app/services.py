@@ -1,4 +1,5 @@
 import httpx
+import asyncio
 from fastapi import HTTPException, Request
 from fastapi.responses import StreamingResponse
 from starlette.background import BackgroundTask
@@ -74,42 +75,40 @@ async def pixabay_video_search(q: str, page: int, per_page: int):
 
 
 # ---- Range proxy core ----
-async def range_proxy(request: Request, target_url: str) -> StreamingResponse:
-    """
-    Stream target_url to the client with HTTP Range passthrough so
-    <audio>/<video> can scrub. Keeps the upstream connection open
-    while Starlette streams to the client, then closes it in a
-    background task.
-    """
-    range_header = request.headers.get("range") or request.headers.get("Range")
-    headers = {"Range": range_header} if range_header else {}
-    headers.setdefault("User-Agent", "meurs-app/1.0")
+async def range_proxy(request: Request, target_url: str):
+    # Forward the Range header if present (audio seeks)
+    fwd_headers = {}
+    if rng := request.headers.get("range"):
+        fwd_headers["Range"] = rng
 
-    # IMPORTANT: don't use `await client.stream(...)`; get a streaming response instead.
-    client = httpx.AsyncClient(timeout=None, follow_redirects=True)
-    try:
-        upstream = await client.get(target_url, headers=headers, stream=True)
-    except Exception:
-        # Ensure client is closed if request fails early
-        await client.aclose()
-        raise
+    client = httpx.AsyncClient(follow_redirects=True, timeout=None)
 
-    # Forward key headers if present
-    fwd = {}
-    for k in ("content-type", "content-length", "accept-ranges", "content-range"):
-        if k in upstream.headers:
-            fwd[k] = upstream.headers[k]
-    fwd.setdefault("cache-control", "no-store")
+    # Build & send as a streamed request (do NOT use 'async with client.stream(...)' here)
+    req = client.build_request("GET", target_url, headers=fwd_headers)
+    upstream = await client.send(req, stream=True)
 
-    async def _cleanup():
+    # Pass through the most important headers/status for media playback
+    passthrough = (
+        "content-type", "content-range", "accept-ranges",
+        "content-length", "etag", "last-modified", "cache-control",
+        "content-disposition",
+    )
+    out_headers = {h: upstream.headers[h] for h in passthrough if h in upstream.headers}
+    status = upstream.status_code
+
+    async def body():
         try:
-            await upstream.aclose()
+            async for chunk in upstream.aiter_bytes():
+                # Optionally guard against empty heartbeats:
+                if not chunk:
+                    continue
+                yield chunk
+        except (httpx.StreamClosed, asyncio.CancelledError):
+            # Upstream closed early or client went away; stop quietly.
+            return
         finally:
+            # Always close network resources
+            await upstream.aclose()
             await client.aclose()
 
-    return StreamingResponse(
-        upstream.aiter_raw(),
-        status_code=upstream.status_code,  # 200 or 206 from the CDN
-        headers=fwd,
-        background=BackgroundTask(_cleanup),
-    )
+    return StreamingResponse(body(), status_code=status, headers=out_headers)

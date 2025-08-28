@@ -8,6 +8,7 @@ docker build -t meurs:latest .
 Run it (no persistence; container-local DB/media)
 docker run --rm -p 8000:8000 meurs:latest
 
+>>>>>>>>>>>>>>>>>>>>>>
 # from  wsl when ever chage code
 cd /opt/dcoker/meurs-app
 
