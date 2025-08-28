@@ -215,9 +215,9 @@ function Auth({ onLoginSuccess }) {
   );
 }
 
-// ---------- PAGES (NEW LAYOUT) ----------
+// ---------- Pages ----------
 
-// MUSIC section (moved out of Home)
+// MUSIC (separate section)
 function MusicSection({ onBack }) {
   const [q, setQ] = React.useState("");
   const [musicResults, setMusicResults] = React.useState(null);
@@ -234,28 +234,11 @@ function MusicSection({ onBack }) {
     try {
       const r = await fetch(`${API}/search/music?q=${encodeURIComponent(q || "lofi")}`);
       const d = await r.json();
-
       const items = (d.items || []).map(it => {
-        // normalize year
         const dateRaw = it.releaseDate || it.release_date || it.create_date || null;
-        let yr = null;
-        if (dateRaw) {
-          const yy = new Date(dateRaw).getFullYear();
-          if (!isNaN(yy)) yr = yy;
-        }
-
-        // build a fallback playable URL if backend didn't give one
-        const id = it.id || it.track_id || it.trackId || it.audius_id;
-        const builtPlay = id ? `${API}/music/stream/${encodeURIComponent(id)}` : null;
-
-        return {
-          ...it,
-          year: yr,
-          // front-end prefers playUrl -> streamUrl -> stream_url
-          playUrl: it.playUrl || it.streamUrl || it.stream_url || builtPlay,
-        };
+        let yr = null; if (dateRaw) { const yy = new Date(dateRaw).getFullYear(); if (!isNaN(yy)) yr = yy; }
+        return { ...it, year: yr };
       });
-
       const ys = [...new Set(items.filter(x => x.year).map(x => x.year))].sort((a,b)=>b-a);
       setYears(ys);
       setMusicResults(items);
@@ -348,12 +331,7 @@ function MusicSection({ onBack }) {
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={()=>playTrack(it)}
-                  disabled={!(it.playUrl || it.streamUrl || it.stream_url)}
-                >
-                  Play
-                </button>
+                <button onClick={()=>playTrack(it)}>Play</button>
               </div>
             ))
           }
@@ -374,7 +352,7 @@ function MusicSection({ onBack }) {
   );
 }
 
-// VIDEOS section (new)
+// VIDEOS (separate section)
 function VideosSection({ onBack }) {
   const [q, setQ] = React.useState("");
   const [results, setResults] = React.useState(null);
@@ -386,30 +364,15 @@ function VideosSection({ onBack }) {
     try {
       const r = await fetch(`${API}/search/videos?q=${encodeURIComponent(q || "trending")}`);
       const d = await r.json();
-
-      const items = (d.items || []).map(it => {
-        // normalize year (best-effort)
-        const dateRaw = it.releaseDate || it.release_date || it.create_date || null;
-        const y = dateRaw ? new Date(dateRaw).getFullYear() : null;
-        const year = isNaN(y) ? null : y;
-
-        // try to discover a raw file url if the backend didn't include stream_url
-        const raw =
-          it.stream_url || it.streamUrl || it.playUrl ||
-          it.file || it.fileUrl || it.bestUrl ||
-          (it.videos && (it.videos.large?.url || it.videos.medium?.url || it.videos.small?.url)) ||
-          it.url;
-
-        // Build a proxied play URL so seeking works via your server
-        const builtPlay = raw ? `${API}/proxy?url=${encodeURIComponent(raw)}` : null;
-
-        return {
-          ...it,
-          year,
-          playUrl: it.playUrl || it.streamUrl || it.stream_url || builtPlay,
-        };
-      });
-
+      const items = (d.items || []).map(it => ({
+        ...it,
+        year: (() => {
+          const dateRaw = it.releaseDate || it.release_date || it.create_date || null;
+          if (!dateRaw) return null;
+          const y = new Date(dateRaw).getFullYear();
+          return isNaN(y) ? null : y;
+        })()
+      }));
       setResults(items);
     } catch {
       setResults([]);
@@ -460,12 +423,7 @@ function VideosSection({ onBack }) {
                     <div className="meta">{it.source?.toUpperCase()}{it.year?` • ${it.year}`:""}</div>
                   </div>
                 </div>
-                <button
-                  onClick={()=>playVideo(it)}
-                  disabled={!(it.playUrl || it.streamUrl || it.stream_url)}
-                >
-                  Play
-                </button>
+                <button onClick={()=>playVideo(it)}>Play</button>
               </div>
             ))
           }
@@ -486,8 +444,7 @@ function VideosSection({ onBack }) {
   );
 }
 
-
-// HOME (now a 3-tile selector like Games)
+// HOME (3-tile selector; NO Local/Online)
 function Home() {
   const [screen, setScreen] = React.useState("menu"); // 'menu' | 'music' | 'videos' | 'shorts'
 

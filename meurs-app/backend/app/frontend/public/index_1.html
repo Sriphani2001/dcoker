@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MEURS</title>
+
+  <!-- Minimal styles to match your existing look & feel -->
+  <style>
+    :root {
+      --bg: #fff;
+      --fg: #0f172a;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --accent: #3b82f6;
+      --density: 1;
+    }
+    [data-theme="dark"] {
+      --bg: #0b0f18;
+      --fg: #e5e7eb;
+      --muted: #9ca3af;
+      --border: #1f2937;
+    }
+    html, body { height:100%; }
+    body {
+      margin:0; background:var(--bg); color:var(--fg);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, Noto Sans, "Apple Color Emoji","Segoe UI Emoji";
+      line-height:1.5; font-size: calc(16px * var(--density));
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 18px; }
+    .nav { position: sticky; top:0; z-index:10; background:var(--bg); border-bottom:1px solid var(--border); }
+    .nav-inner { display:flex; align-items:center; gap:12px; height:56px; }
+    .brand { font-weight:800; letter-spacing:.5px }
+    .tabs { display:flex; gap:4px; }
+    .tab { border:none; background:transparent; padding:8px 10px; border-radius:10px; cursor:pointer; color:var(--fg); }
+    .tab.active { background: color-mix(in oklab, var(--accent) 16%, transparent); }
+    .pill { border:1px solid var(--border); padding:6px 12px; border-radius:999px; background:transparent; cursor:pointer; color:var(--fg);}
+    .spacer { flex:1 }
+    h2 { margin: 22px 0 12px; font-size: 28px; }
+    h3 { margin: 8px 0 12px; }
+    .card { border:1px solid var(--border); border-radius:12px; padding:14px; background:var(--bg); }
+    .row { margin-top:10px; }
+    .muted { color:var(--muted); }
+    .grid { display:grid; }
+    .media-item { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
+    .thumb { width:52px; height:52px; border-radius:8px; object-fit:cover; border:1px solid var(--border); }
+    .label .title { font-weight:600; }
+    .label .meta { color:var(--muted); font-size:.92em; }
+    input, select, textarea { background:transparent; color:var(--fg); border:1px solid var(--border); border-radius:10px; padding:8px 10px; }
+    input[type="range"]{ accent-color: var(--accent); }
+    button { border:1px solid var(--border); background: color-mix(in oklab, var(--accent) 12%, transparent); color:var(--fg); padding:8px 12px; border-radius:10px; cursor:pointer; }
+    button.card { width:100%; text-align:left; }
+    a { color: var(--accent); text-decoration: none; }
+    .center { display:grid; place-items:center; min-height: calc(100vh - 56px); }
+    /* Profile Drawer */
+    .drawer { position: fixed; right: 16px; top: 72px; width: 320px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); box-shadow: 0 8px 28px rgba(0,0,0,.12); }
+    .drawer.hidden { display:none; }
+  </style>
+
+  <!-- React 18 from CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- App -->
+  <script type="text/javascript" src="/static/app1.js?v=2"></script>
+  <!-- If you prefer inline below instead of /static/app.js, replace the line above with the big script from app.js -->
+</body>
+</html>
