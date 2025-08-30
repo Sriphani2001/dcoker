@@ -2,9 +2,9 @@
 const API = "/api";
 const STATIC_BASE = "/static";
 
-// ---------- utilities ----------
+/* ---------------- utilities ---------------- */
 const escapeHtml = (s) =>
-  String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'" :'&#39;'}[m]));
 
 function useLocalPref(key, initial) {
   const [val, setVal] = React.useState(() => {
@@ -36,7 +36,50 @@ function useTheme() {
   return { theme, setTheme, accent, setAccent, density, setDensity };
 }
 
-// ---------- WebSocket hook for Comuni ----------
+/* -------------- Ripple (global) -------------- */
+function useGlobalRipple() {
+  React.useEffect(() => {
+    const onClick = (e) => {
+      const el = e.target.closest("button, .card, .tile, .tab");
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const d = Math.max(rect.width, rect.height);
+      const r = document.createElement("span");
+      r.className = "ripple";
+      r.style.width = r.style.height = `${d}px`;
+      r.style.left = `${e.clientX - rect.left - d/2}px`;
+      r.style.top  = `${e.clientY - rect.top  - d/2}px`;
+      el.appendChild(r);
+      setTimeout(() => r.remove(), 650);
+    };
+    document.addEventListener("click", onClick, { passive:true });
+    return () => document.removeEventListener("click", onClick);
+  }, []);
+}
+
+/* -------------- Toasts -------------- */
+const ToastCtx = React.createContext({ push: () => {} });
+function ToastProvider({ children }) {
+  const [toasts, setToasts] = React.useState([]);
+  const push = (text, kind="ok", ms=2200) => {
+    const id = Math.random().toString(36).slice(2,9);
+    setToasts(ts => [...ts, { id, text, kind }]);
+    setTimeout(() => setToasts(ts => ts.filter(t => t.id !== id)), ms);
+  };
+  return (
+    <ToastCtx.Provider value={{ push }}>
+      {children}
+      <div className="toast-wrap">
+        {toasts.map(t => (
+          <div key={t.id} className={`toast ${t.kind}`}>{t.text}</div>
+        ))}
+      </div>
+    </ToastCtx.Provider>
+  );
+}
+function useToast(){ return React.useContext(ToastCtx); }
+
+/* -------------- WebSocket hook for Comuni -------------- */
 function useComuni(roomId, username) {
   const [messages, setMessages] = React.useState([]);
   const [connected, setConnected] = React.useState(false);
@@ -90,8 +133,10 @@ function useComuni(roomId, username) {
   return { messages, connected, sendChat, sendFile };
 }
 
-// ---------- Components ----------
-function Nav({ route, setRoute, user, onOpenProfile }) {
+/* ---------------- Components ---------------- */
+function Nav({ route, setRoute, user, onOpenProfile, themeApi }) {
+  const { theme, setTheme } = themeApi;
+  const quickToggle = () => setTheme(theme === "dark" ? "light" : "dark");
   return (
     <div className="nav">
       <div className="nav-inner container">
@@ -101,6 +146,7 @@ function Nav({ route, setRoute, user, onOpenProfile }) {
             <button key={r}
               className={`tab ${route===r?"active":""}`}
               data-route={r}
+              title={r[0].toUpperCase()+r.slice(1)}
               onClick={() => setRoute(r)}>
               <span className="icon">{r==="home"?"🏠":r==="dashboard"?"📊":r==="games"?"🎮":"ℹ️"}</span>
               {r[0].toUpperCase()+r.slice(1)}
@@ -108,7 +154,10 @@ function Nav({ route, setRoute, user, onOpenProfile }) {
           ))}
         </div>
         <div className="spacer" />
-        <button id="profileBtn" className="pill" onClick={onOpenProfile}>
+        <button className="pill ghost" title="Toggle theme" onClick={quickToggle}>
+          {theme === "dark" ? "🌙" : "☀️"}
+        </button>
+        <button id="profileBtn" className="pill" onClick={onOpenProfile} title="Profile & settings">
           <span className="icon">👤</span><span id="profileName">{user||"Guest"}</span>
         </button>
       </div>
@@ -118,48 +167,72 @@ function Nav({ route, setRoute, user, onOpenProfile }) {
 
 function ProfileDrawer({ open, onClose, user, logout, themeApi }) {
   const { theme, setTheme, accent, setAccent, density, setDensity } = themeApi;
+
+  // Close on ESC
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   return (
-    <div id="profileDrawer" className={`drawer ${open?"":"hidden"}`}>
-      <h3 style={{margin:"6px 0"}}>Profile</h3>
-      <div className="muted" id="profileUserLine">Signed in as {user||"Guest"}</div>
+    <>
+      {/* Backdrop */}
+      <div
+        className={`backdrop ${open ? "show" : ""}`}
+        onClick={onClose}
+        aria-hidden={!open}
+      />
+      {/* Drawer panel */}
+      <div
+        id="profileDrawer"
+        className={`drawer ${open ? "open" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="profileDrawerTitle"
+      >
+        <h3 id="profileDrawerTitle" style={{margin:"6px 0"}}>Profile</h3>
+        <div className="muted" id="profileUserLine">Signed in as {user||"Guest"}</div>
 
-      <hr className="row" style={{border:"none", borderTop:"1px solid var(--border)"}} />
+        <hr className="row" style={{border:"none", borderTop:"1px solid var(--border)"}} />
 
-      <h4 style={{margin:"6px 0"}}>Customize UI</h4>
-      <div className="row">
-        <label>Theme:&nbsp;
-          <select id="themeSelect" value={theme} onChange={e=>setTheme(e.target.value)}>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </label>
+        <h4 style={{margin:"6px 0"}}>Customize UI</h4>
+        <div className="row">
+          <label>Theme:&nbsp;
+            <select id="themeSelect" value={theme} onChange={e=>setTheme(e.target.value)}>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+        </div>
+        <div className="row">
+          <label>Accent:&nbsp;
+            <select id="accentSelect" value={accent} onChange={e=>setAccent(e.target.value)}>
+              <option value="#3b82f6">Blue</option>
+              <option value="#10b981">Green</option>
+              <option value="#f59e0b">Amber</option>
+              <option value="#ef4444">Red</option>
+              <option value="#a855f7">Purple</option>
+            </select>
+          </label>
+        </div>
+        <div className="row">
+          <label>Density:&nbsp;
+            <select id="densitySelect" value={density} onChange={e=>setDensity(e.target.value)}>
+              <option value="0.9">Compact</option>
+              <option value="1">Cozy</option>
+              <option value="1.15">Comfy</option>
+            </select>
+          </label>
+        </div>
+        <div className="row" style={{display:"flex",gap:8,alignItems:"center"}}>
+          <button id="logoutBtn" onClick={logout}>Log out</button>
+          <button id="closeDrawer" onClick={onClose} autoFocus>Close</button>
+        </div>
+        <div className="muted" style={{fontSize:".9em"}}>Tip: Your choices are saved to this browser (localStorage).</div>
       </div>
-      <div className="row">
-        <label>Accent:&nbsp;
-          <select id="accentSelect" value={accent} onChange={e=>setAccent(e.target.value)}>
-            <option value="#3b82f6">Blue</option>
-            <option value="#10b981">Green</option>
-            <option value="#f59e0b">Amber</option>
-            <option value="#ef4444">Red</option>
-            <option value="#a855f7">Purple</option>
-          </select>
-        </label>
-      </div>
-      <div className="row">
-        <label>Density:&nbsp;
-          <select id="densitySelect" value={density} onChange={e=>setDensity(e.target.value)}>
-            <option value="0.9">Compact</option>
-            <option value="1">Cozy</option>
-            <option value="1.15">Comfy</option>
-          </select>
-        </label>
-      </div>
-      <div className="row" style={{display:"flex",gap:8,alignItems:"center"}}>
-        <button id="logoutBtn" onClick={logout}>Log out</button>
-        <button id="closeDrawer" onClick={onClose}>Close</button>
-      </div>
-      <div className="muted" style={{fontSize:".9em"}}>Tip: Your choices are saved to this browser (localStorage).</div>
-    </div>
+    </>
   );
 }
 
@@ -168,6 +241,7 @@ function Auth({ onLoginSuccess }) {
   const [u, setU] = React.useState("");
   const [p, setP] = React.useState("");
   const [msg, setMsg] = React.useState("");
+  const toast = useToast();
 
   const notify = (t)=>{ setMsg(t); };
 
@@ -182,11 +256,12 @@ function Auth({ onLoginSuccess }) {
     if(!u||!p) return notify("Enter username & password");
     const r = await fetch(`${API}/login`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,password:p})});
     const d = await r.json(); if(!r.ok) return notify(d.detail||"Login failed");
+    toast.push(`Welcome, ${u}!`);
     onLoginSuccess(u);
   };
 
   return (
-    <div className="center">
+    <div className="center page">
       <div className="card" style={{width:"min(560px, 92vw)"}}>
         <h2>Welcome to Meurs</h2>
         <div className="row">
@@ -215,9 +290,9 @@ function Auth({ onLoginSuccess }) {
   );
 }
 
-// ---------- PAGES (NEW LAYOUT) ----------
+/* ---------------- PAGES ---------------- */
 
-// MUSIC section (moved out of Home)
+/* MUSIC */
 function MusicSection({ onBack }) {
   const [q, setQ] = React.useState("");
   const [musicResults, setMusicResults] = React.useState(null);
@@ -228,6 +303,13 @@ function MusicSection({ onBack }) {
   const [years, setYears] = React.useState([]);
 
   const audioRef = React.useRef(null);
+  const searchRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const onKey = (e)=>{ if(e.key==="/" && document.activeElement.tagName!=="INPUT" && document.activeElement.tagName!=="TEXTAREA"){ e.preventDefault(); searchRef.current?.focus(); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const searchMusic = async () => {
     setLoading(true); setMusicResults(null);
@@ -236,22 +318,18 @@ function MusicSection({ onBack }) {
       const d = await r.json();
 
       const items = (d.items || []).map(it => {
-        // normalize year
         const dateRaw = it.releaseDate || it.release_date || it.create_date || null;
         let yr = null;
         if (dateRaw) {
           const yy = new Date(dateRaw).getFullYear();
           if (!isNaN(yy)) yr = yy;
         }
-
-        // build a fallback playable URL if backend didn't give one
         const id = it.id || it.track_id || it.trackId || it.audius_id;
         const builtPlay = id ? `${API}/music/stream/${encodeURIComponent(id)}` : null;
 
         return {
           ...it,
           year: yr,
-          // front-end prefers playUrl -> streamUrl -> stream_url
           playUrl: it.playUrl || it.streamUrl || it.stream_url || builtPlay,
         };
       });
@@ -294,15 +372,18 @@ function MusicSection({ onBack }) {
   };
 
   return (
-    <>
+    <div className="page">
       <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:8}}>
         <button onClick={onBack}>← Back</button>
         <h3 style={{margin:0}}>Music</h3>
+        <div className="muted" style={{marginLeft:"auto"}}>Press “/” to focus search</div>
       </div>
 
       <div className="card">
+        <div className={`progress ${loading ? "active":""}`} />
         <div className="row" style={{display:"flex", gap:8, alignItems:"center"}}>
           <input
+            ref={searchRef}
             placeholder="Search music… (e.g., 'lofi chill')"
             style={{flex:1}}
             value={q}
@@ -330,9 +411,13 @@ function MusicSection({ onBack }) {
         )}
 
         <div id="music-results" className="row">
-          {loading ? "Searching…" :
-            musicResults == null ? <div className="muted">Type a query and press Search.</div> :
-            visibleMusic.length === 0 ? "No results." :
+          {loading ? (
+            Array.from({length:6}).map((_,i)=><div className="skeleton" key={i} />)
+          ) : musicResults == null ? (
+            <div className="muted">Type a query and press Search.</div>
+          ) : visibleMusic.length === 0 ? (
+            "No results."
+          ) : (
             visibleMusic.map((it, idx) => (
               <div className="row" key={idx}>
                 <div className="media-item">
@@ -340,9 +425,7 @@ function MusicSection({ onBack }) {
                   <div className="label">
                     <div className="title"
                       dangerouslySetInnerHTML={{__html:
-                        `${escapeHtml(it.title||"Untitled")}${it.artist?` — <span class="meta">${escapeHtml(it.artist)}</span>`:""}`
-                      }}
-                    />
+                        `${escapeHtml(it.title||"Untitled")}${it.artist?` — <span class="meta">${escapeHtml(it.artist)}</span>`:""}`}} />
                     <div className="meta">
                       {it.source?.toUpperCase()}{it.year?` • ${it.year}`:""}
                     </div>
@@ -356,7 +439,7 @@ function MusicSection({ onBack }) {
                 </button>
               </div>
             ))
-          }
+          )}
         </div>
 
         <audio
@@ -370,46 +453,45 @@ function MusicSection({ onBack }) {
           Only one song plays at a time. Downloads are disabled in the player UI.
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
-// VIDEOS section (new)
+/* VIDEOS */
 function VideosSection({ onBack }) {
   const [q, setQ] = React.useState("");
   const [results, setResults] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
   const videoRef = React.useRef(null);
+  const searchRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const onKey = (e)=>{ if(e.key==="/" && document.activeElement.tagName!=="INPUT" && document.activeElement.tagName!=="TEXTAREA"){ e.preventDefault(); searchRef.current?.focus(); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const searchVideos = async () => {
     setLoading(true); setResults(null);
     try {
       const r = await fetch(`${API}/search/videos?q=${encodeURIComponent(q || "trending")}`);
       const d = await r.json();
-
       const items = (d.items || []).map(it => {
-        // normalize year (best-effort)
         const dateRaw = it.releaseDate || it.release_date || it.create_date || null;
         const y = dateRaw ? new Date(dateRaw).getFullYear() : null;
         const year = isNaN(y) ? null : y;
-
-        // try to discover a raw file url if the backend didn't include stream_url
         const raw =
           it.stream_url || it.streamUrl || it.playUrl ||
           it.file || it.fileUrl || it.bestUrl ||
           (it.videos && (it.videos.large?.url || it.videos.medium?.url || it.videos.small?.url)) ||
           it.url;
-
-        // Build a proxied play URL so seeking works via your server
         const builtPlay = raw ? `${API}/proxy?url=${encodeURIComponent(raw)}` : null;
-
         return {
           ...it,
           year,
           playUrl: it.playUrl || it.streamUrl || it.stream_url || builtPlay,
         };
       });
-
       setResults(items);
     } catch {
       setResults([]);
@@ -427,15 +509,18 @@ function VideosSection({ onBack }) {
   };
 
   return (
-    <>
+    <div className="page">
       <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:8}}>
         <button onClick={onBack}>← Back</button>
         <h3 style={{margin:0}}>Videos</h3>
+        <div className="muted" style={{marginLeft:"auto"}}>Press “/” to focus search</div>
       </div>
 
       <div className="card">
+        <div className={`progress ${loading ? "active":""}`} />
         <div className="row" style={{display:"flex", gap:8, alignItems:"center"}}>
           <input
+            ref={searchRef}
             placeholder="Search videos…"
             style={{flex:1}}
             value={q}
@@ -446,9 +531,13 @@ function VideosSection({ onBack }) {
         </div>
 
         <div className="row">
-          {loading ? "Searching…" :
-            results == null ? <div className="muted">Type a query and press Search.</div> :
-            results.length === 0 ? "No results." :
+          {loading ? (
+            Array.from({length:6}).map((_,i)=><div className="skeleton" key={i} />)
+          ) : results == null ? (
+            <div className="muted">Type a query and press Search.</div>
+          ) : results.length === 0 ? (
+            "No results."
+          ) : (
             results.map((it, idx) => (
               <div className="row" key={idx}>
                 <div className="media-item">
@@ -468,7 +557,7 @@ function VideosSection({ onBack }) {
                 </button>
               </div>
             ))
-          }
+          )}
         </div>
 
         <video
@@ -482,13 +571,12 @@ function VideosSection({ onBack }) {
           Only one video plays at a time. Downloads are disabled in the player UI.
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
-
-// HOME (now a 3-tile selector like Games)
-function Home() {
+/* HOME */
+function Home({ currentUser }) {
   const [screen, setScreen] = React.useState("menu"); // 'menu' | 'music' | 'videos' | 'shorts'
 
   if (screen === "music")  return <MusicSection onBack={()=>setScreen("menu")} />;
@@ -496,7 +584,7 @@ function Home() {
 
   if (screen === "shorts") {
     return (
-      <>
+      <div className="page">
         <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:8}}>
           <button onClick={()=>setScreen("menu")}>← Back</button>
           <h3 style={{margin:0}}>Shorts</h3>
@@ -504,65 +592,71 @@ function Home() {
         <div className="card">
           <div className="muted">Shorts will live here soon — you can wire this up later.</div>
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="page">
       <h2>Home</h2>
+      <div className="muted" style={{marginBottom:8}}>Hi{currentUser?`, ${currentUser}`:""} 👋 — what would you like to do?</div>
       <div className="card">
         <h3>Pick a section</h3>
         <div className="grid" style={{gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))", gap:16}}>
-          <button className="card" style={{textAlign:"left"}} onClick={()=>setScreen("music")}>
-            <div style={{fontSize:28, marginBottom:8}}>🎵</div>
+          <button className="card tile" onClick={()=>setScreen("music")}>
+            <div className="emoji">🎵</div>
             <div style={{fontWeight:600}}>Music</div>
             <div className="muted">Search and play music from online providers.</div>
           </button>
-          <button className="card" style={{textAlign:"left"}} onClick={()=>setScreen("videos")}>
-            <div style={{fontSize:28, marginBottom:8}}>🎬</div>
+          <button className="card tile" onClick={()=>setScreen("videos")}>
+            <div className="emoji">🎬</div>
             <div style={{fontWeight:600}}>Videos</div>
             <div className="muted">Search and play videos via your API.</div>
           </button>
-          <button className="card" style={{textAlign:"left"}} onClick={()=>setScreen("shorts")}>
-            <div style={{fontSize:28, marginBottom:8}}>🎞️</div>
+          <button className="card tile" onClick={()=>setScreen("shorts")}>
+            <div className="emoji">🎞️</div>
             <div style={{fontWeight:600}}>Shorts</div>
             <div className="muted">Coming soon.</div>
           </button>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
+/* DASHBOARD */
 function Dashboard({ currentUser }) {
   const [roomId, setRoomId] = React.useState(null);
   const [joinId, setJoinId] = React.useState("");
   const [isOwner, setIsOwner] = React.useState(false);
   const { messages, connected, sendChat, sendFile } = useComuni(roomId, currentUser);
+  const toast = useToast();
 
   const createRoom = async () => {
     const r = await fetch(`${API}/comuni/rooms`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({username:currentUser})});
     const d = await r.json(); if(!r.ok) return alert(d.detail||"Failed to create room");
     setRoomId(d.room_id); setIsOwner(true);
+    toast.push("Room created");
   };
   const joinRoom = async () => {
     if(!joinId) return alert("Enter room id");
     const r = await fetch(`${API}/comuni/rooms/${encodeURIComponent(joinId)}/join`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({username:currentUser})});
     const d = await r.json(); if(!r.ok) return alert(d.detail||"Failed to join");
     setRoomId(joinId); setIsOwner(!!d.is_owner);
+    toast.push(`Joined room ${joinId}`);
   };
   const closeRoom = async () => {
     if(!roomId) return;
     const r = await fetch(`${API}/comuni/rooms/${encodeURIComponent(roomId)}`, { method:"DELETE", headers:{"Content-Type":"application/json"}, body:JSON.stringify({username:currentUser})});
     if(!r.ok){ const d = await r.json().catch(()=>({})); alert(d.detail||"Failed to close room"); return; }
     setRoomId(null); setIsOwner(false);
+    toast.push("Room closed");
   };
 
   const [text, setText] = React.useState("");
 
   return (
-    <>
+    <div className="page">
       <h2>Dashboard</h2>
       <div className="card">
         <h3>Comuni</h3>
@@ -570,14 +664,14 @@ function Dashboard({ currentUser }) {
           <button id="btn-create" onClick={createRoom}>Create room</button>
           <input id="join-id" placeholder="Enter room id (7 chars)" style={{width:240}} value={joinId} onChange={e=>setJoinId(e.target.value)} />
           <button id="btn-join" onClick={joinRoom}>Join room</button>
-          {roomId && <button id="btn-copy" title="Copy room id" onClick={async ()=>{ await navigator.clipboard.writeText(roomId); }}>{`Copy room id`}</button>}
+          {roomId && <button id="btn-copy" title="Copy room id" onClick={async ()=>{ await navigator.clipboard.writeText(roomId); toast.push("Room id copied"); }}>{`Copy room id`}</button>}
         </div>
 
         {roomId && (
           <>
             <div id="room-bar" className="row">
               <span>Room: <b id="room-id-label">{roomId}</b></span>
-              <button id="btn-exit" style={{marginLeft:12}} onClick={()=>{ setRoomId(null); setIsOwner(false); }}>Exit</button>
+              <button id="btn-exit" style={{marginLeft:12}} onClick={()=>{ setRoomId(null); setIsOwner(false); toast.push("Exited room"); }}>Exit</button>
               {isOwner && <button id="btn-close" style={{marginLeft:8}} onClick={closeRoom}>Close room</button>}
             </div>
 
@@ -609,21 +703,21 @@ function Dashboard({ currentUser }) {
           </>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
 function Games() {
   const [screen, setScreen] = React.useState("menu"); // 'menu' | 'rps'
   return (
-    <>
+    <div className="page">
       <h2>Games</h2>
       {screen === "menu" && (
         <div className="card">
           <h3>Pick a game</h3>
           <div className="grid" style={{gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))", gap:16}}>
-            <button className="card" style={{textAlign:"left"}} onClick={()=>setScreen("rps")}>
-              <div style={{fontSize:28, marginBottom:8}}>🪨 📄 ✂️</div>
+            <button className="card tile" onClick={()=>setScreen("rps")}>
+              <div className="emoji">🪨 📄 ✂️</div>
               <div style={{fontWeight:600}}>Rock • Paper • Scissors (Simulation)</div>
               <div className="muted">Bouncing agents convert each other on contact.</div>
             </button>
@@ -632,7 +726,7 @@ function Games() {
       )}
 
       {screen === "rps" && <RpsSim onBack={()=>setScreen("menu")} />}
-    </>
+    </div>
   );
 }
 
@@ -806,7 +900,7 @@ function RpsSim({ onBack }) {
   };
 
   return (
-    <div className="card">
+    <div className="card page">
       <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:8}}>
         <button onClick={onBack}>← Back</button>
         <h3 style={{margin:0}}>Rock • Paper • Scissors — Simulation</h3>
@@ -863,7 +957,7 @@ function RpsSim({ onBack }) {
 
 function About(){
   return (
-    <>
+    <div className="page">
       <h2>About</h2>
       <div className="card">
         <p><b>Meurs</b> is a personal media & communication hub. Play your local music/videos, and use <b>Comuni</b> to chat and share files directly via your server — no storage, just relay.</p>
@@ -874,13 +968,15 @@ function About(){
           <li>Profile (top right): your username + UI customization</li>
         </ul>
       </div>
-    </>
+    </div>
   );
 }
 
-// ---------- Root App ----------
+/* ---------------- Root App ---------------- */
 function App(){
+  useGlobalRipple();
   const themeApi = useTheme();
+  const toast = useToast();
   const [currentUser, setCurrentUser] = React.useState(null);
   const [route, setRoute] = React.useState("home");
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -898,17 +994,18 @@ function App(){
     localStorage.removeItem("meurs_user");
     setCurrentUser(null);
     setDrawerOpen(false);
+    toast.push("Logged out", "ok");
   };
 
   return (
     <>
-      <Nav route={route} setRoute={setRoute} user={currentUser} onOpenProfile={()=>setDrawerOpen(v=>!v)} />
+      <Nav route={route} setRoute={setRoute} user={currentUser} onOpenProfile={()=>setDrawerOpen(v=>!v)} themeApi={themeApi} />
       <div className="container">
         {!currentUser ? (
           <Auth onLoginSuccess={onLoginSuccess} />
         ) : (
           <>
-            {route==="home" && <Home />}
+            {route==="home" && <Home currentUser={currentUser} />}
             {route==="dashboard" && <Dashboard currentUser={currentUser} />}
             {route==="games" && <Games />}
             {route==="about" && <About />}
@@ -920,4 +1017,8 @@ function App(){
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <ToastProvider>
+    <App />
+  </ToastProvider>
+);
