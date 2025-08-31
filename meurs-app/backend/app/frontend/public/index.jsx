@@ -171,53 +171,59 @@ function Nav({ route, setRoute, user, onOpenProfile, onOpenSide, themeApi }) {
 function SideNav({ open, onClose, route, setRoute }) {
   const [collapsed, setCollapsed] = React.useState(false);
 
-  // Close on ESC or route change
+  // Close on ESC key
   React.useEffect(() => {
     if (!open) return;
-    const onKey = (e)=>{ if(e.key==="Escape") onClose(); };
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const go = (r) => { setRoute(r); onClose(); };
+  // Change route and close drawer
+  const go = (r) => {
+    setRoute(r);
+    onClose();
+  };
 
-  // map items (using your routes, plus a Profile and Sign Out entry)
+  // Final navigation items
   const items = [
-    { key:"home",      label:"Home",      icon:"🏠", onClick:()=>go("home") },
-    { key:"profile",   label:"Profile",   icon:"👤", onClick:()=>document.getElementById("profileBtn")?.click() },
-    { key:"dashboard", label:"Message",   icon:"💬", onClick:()=>go("dashboard") }, // Comuni
-    { key:"about",     label:"Help",      icon:"❓", onClick:()=>go("about") },
-    { key:"games",     label:"Setting",   icon:"⚙️", onClick:()=>go("games") },
-    { key:"password",  label:"Password",  icon:"🔐", onClick:()=>alert("Hook to a password screen if you add one.") },
-    { key:"signout",   label:"Sign Out",  icon:"🚪", onClick:()=>document.querySelector("#profileBtn")?.dispatchEvent(new Event("click",{bubbles:true})) },
+    { key: "home", label: "Home", icon: "🏠", onClick: () => go("home") },
+    { key: "dashboard", label: "Comuni", icon: "💬", onClick: () => go("dashboard") },
+    { key: "games", label: "Games", icon: "🎮", onClick: () => go("games") },
+    { key: "about", label: "About Us", icon: "ℹ️", onClick: () => go("about") },
   ];
 
-  // Active state: treat current route as active; special keys not in routes aren’t highlighted
-  const isActive = (k) => ["home","dashboard","games","about"].includes(k) && route===k;
+  const isActive = (k) => route === k;
 
   return (
     <>
+      {/* Backdrop for mobile */}
       <div
         className={`backdrop side-backdrop ${open ? "show" : ""}`}
         onClick={onClose}
         aria-hidden={!open}
       />
+
+      {/* Side Navigation Drawer */}
       <aside
-        className={`side-drawer`}
-        aria-label="Main"
-        style={{pointerEvents: open ? "auto" : "none"}}
+        className="side-drawer"
+        aria-label="Main Navigation"
+        style={{ pointerEvents: open ? "auto" : "none" }}
       >
-        <div className={`rail ${open ? "open":""} ${collapsed ? "collapsed":""}`}>
+        <div className={`rail ${open ? "open" : ""} ${collapsed ? "collapsed" : ""}`}>
+          
+          {/* Logo / Header */}
           <div className="rail-head">
             <div className="rail-logo">M</div>
           </div>
 
+          {/* Main Nav Buttons */}
           <div className="rail-card">
             <div className="rail-list">
-              {items.map(it => (
+              {items.map((it) => (
                 <button
                   key={it.key}
-                  className={`rail-item ${isActive(it.key) ? "active":""}`}
+                  className={`rail-item ${isActive(it.key) ? "active" : ""}`}
                   onClick={it.onClick}
                   title={it.label}
                 >
@@ -228,21 +234,31 @@ function SideNav({ open, onClose, route, setRoute }) {
             </div>
           </div>
 
+          {/* Footer Section */}
           <div className="rail-foot">
-            {/* You can put compact actions here; they hide when collapsed */}
-            <div className="row">
-              <div className="muted" style={{color:"#e6eaff"}}>Quick actions</div>
-            </div>
             <div className="row mini">
-              <button className="pill" onClick={()=>document.getElementById("profileBtn")?.click()} title="Profile">👤</button>
-              <button className="pill" onClick={()=>onClose()} title="Close">✕</button>
+              <button
+                className="pill"
+                onClick={() => document.getElementById("profileBtn")?.click()}
+                title="Profile"
+              >
+                👤
+              </button>
+              <button
+                className="pill"
+                onClick={() => onClose()}
+                title="Close"
+              >
+                ✕
+              </button>
             </div>
           </div>
 
+          {/* Collapse / Expand Toggle */}
           <button
             className="rail-toggle"
             aria-label={collapsed ? "Expand menu" : "Collapse menu"}
-            onClick={()=>setCollapsed(v=>!v)}
+            onClick={() => setCollapsed((v) => !v)}
           >
             {collapsed ? "›" : "‹"}
           </button>
