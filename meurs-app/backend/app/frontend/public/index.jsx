@@ -40,7 +40,7 @@ function useTheme() {
 function useGlobalRipple() {
   React.useEffect(() => {
     const onClick = (e) => {
-      const el = e.target.closest("button, .card, .tile, .tab");
+      const el = e.target.closest("button, .card, .tile, .tab, .side-link");
       if (!el) return;
       const rect = el.getBoundingClientRect();
       const d = Math.max(rect.width, rect.height);
@@ -134,12 +134,15 @@ function useComuni(roomId, username) {
 }
 
 /* ---------------- Components ---------------- */
-function Nav({ route, setRoute, user, onOpenProfile, themeApi }) {
+function Nav({ route, setRoute, user, onOpenProfile, onOpenSide, themeApi }) {
   const { theme, setTheme } = themeApi;
   const quickToggle = () => setTheme(theme === "dark" ? "light" : "dark");
   return (
     <div className="nav">
       <div className="nav-inner container">
+        <button className="pill burger" aria-label="Open menu" onClick={onOpenSide} title="Menu">
+          ☰
+        </button>
         <div className="brand">MEURS</div>
         <div className="tabs">
           {["home","dashboard","games","about"].map(r => (
@@ -164,6 +167,91 @@ function Nav({ route, setRoute, user, onOpenProfile, themeApi }) {
     </div>
   );
 }
+
+function SideNav({ open, onClose, route, setRoute }) {
+  const [collapsed, setCollapsed] = React.useState(false);
+
+  // Close on ESC or route change
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (e)=>{ if(e.key==="Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  const go = (r) => { setRoute(r); onClose(); };
+
+  // map items (using your routes, plus a Profile and Sign Out entry)
+  const items = [
+    { key:"home",      label:"Home",      icon:"🏠", onClick:()=>go("home") },
+    { key:"profile",   label:"Profile",   icon:"👤", onClick:()=>document.getElementById("profileBtn")?.click() },
+    { key:"dashboard", label:"Message",   icon:"💬", onClick:()=>go("dashboard") }, // Comuni
+    { key:"about",     label:"Help",      icon:"❓", onClick:()=>go("about") },
+    { key:"games",     label:"Setting",   icon:"⚙️", onClick:()=>go("games") },
+    { key:"password",  label:"Password",  icon:"🔐", onClick:()=>alert("Hook to a password screen if you add one.") },
+    { key:"signout",   label:"Sign Out",  icon:"🚪", onClick:()=>document.querySelector("#profileBtn")?.dispatchEvent(new Event("click",{bubbles:true})) },
+  ];
+
+  // Active state: treat current route as active; special keys not in routes aren’t highlighted
+  const isActive = (k) => ["home","dashboard","games","about"].includes(k) && route===k;
+
+  return (
+    <>
+      <div
+        className={`backdrop side-backdrop ${open ? "show" : ""}`}
+        onClick={onClose}
+        aria-hidden={!open}
+      />
+      <aside
+        className={`side-drawer`}
+        aria-label="Main"
+        style={{pointerEvents: open ? "auto" : "none"}}
+      >
+        <div className={`rail ${open ? "open":""} ${collapsed ? "collapsed":""}`}>
+          <div className="rail-head">
+            <div className="rail-logo">M</div>
+          </div>
+
+          <div className="rail-card">
+            <div className="rail-list">
+              {items.map(it => (
+                <button
+                  key={it.key}
+                  className={`rail-item ${isActive(it.key) ? "active":""}`}
+                  onClick={it.onClick}
+                  title={it.label}
+                >
+                  <span className="ico">{it.icon}</span>
+                  <span className="lbl">{it.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rail-foot">
+            {/* You can put compact actions here; they hide when collapsed */}
+            <div className="row">
+              <div className="muted" style={{color:"#e6eaff"}}>Quick actions</div>
+            </div>
+            <div className="row mini">
+              <button className="pill" onClick={()=>document.getElementById("profileBtn")?.click()} title="Profile">👤</button>
+              <button className="pill" onClick={()=>onClose()} title="Close">✕</button>
+            </div>
+          </div>
+
+          <button
+            className="rail-toggle"
+            aria-label={collapsed ? "Expand menu" : "Collapse menu"}
+            onClick={()=>setCollapsed(v=>!v)}
+          >
+            {collapsed ? "›" : "‹"}
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+}
+
 
 function ProfileDrawer({ open, onClose, user, logout, themeApi }) {
   const { theme, setTheme, accent, setAccent, density, setDensity } = themeApi;
@@ -292,7 +380,6 @@ function Auth({ onLoginSuccess }) {
 
 /* ---------------- PAGES ---------------- */
 
-/* MUSIC */
 function MusicSection({ onBack }) {
   const [q, setQ] = React.useState("");
   const [musicResults, setMusicResults] = React.useState(null);
@@ -457,7 +544,6 @@ function MusicSection({ onBack }) {
   );
 }
 
-/* VIDEOS */
 function VideosSection({ onBack }) {
   const [q, setQ] = React.useState("");
   const [results, setResults] = React.useState(null);
@@ -956,6 +1042,7 @@ function RpsSim({ onBack }) {
 }
 
 function About(){
+
   return (
     <div className="page">
       <h2>About</h2>
@@ -980,11 +1067,15 @@ function App(){
   const [currentUser, setCurrentUser] = React.useState(null);
   const [route, setRoute] = React.useState("home");
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [sideOpen, setSideOpen] = React.useState(false);
 
   React.useEffect(()=> {
     const u = localStorage.getItem("meurs_user");
     if (u) setCurrentUser(u);
   }, []);
+
+  // Close side menu when route changes
+  React.useEffect(()=>{ setSideOpen(false); }, [route]);
 
   const onLoginSuccess = (u) => {
     setCurrentUser(u);
@@ -994,12 +1085,21 @@ function App(){
     localStorage.removeItem("meurs_user");
     setCurrentUser(null);
     setDrawerOpen(false);
+    setSideOpen(false);
     toast.push("Logged out", "ok");
   };
 
   return (
     <>
-      <Nav route={route} setRoute={setRoute} user={currentUser} onOpenProfile={()=>setDrawerOpen(v=>!v)} themeApi={themeApi} />
+      <Nav
+        route={route}
+        setRoute={setRoute}
+        user={currentUser}
+        onOpenProfile={()=>setDrawerOpen(v=>!v)}
+        onOpenSide={()=>setSideOpen(true)}
+        themeApi={themeApi}
+      />
+      <SideNav open={sideOpen} onClose={()=>setSideOpen(false)} route={route} setRoute={setRoute} />
       <div className="container">
         {!currentUser ? (
           <Auth onLoginSuccess={onLoginSuccess} />
