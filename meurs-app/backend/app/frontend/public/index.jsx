@@ -268,7 +268,6 @@ function SideNav({ open, onClose, route, setRoute }) {
   );
 }
 
-
 function ProfileDrawer({ open, onClose, user, logout, themeApi }) {
   const { theme, setTheme, accent, setAccent, density, setDensity } = themeApi;
 
