@@ -1,34 +1,13 @@
-function Games() {
-  const [screen, setScreen] = React.useState("menu"); // 'menu' | 'rps'
-  return (
-    <>
-      <h2>Games</h2>
-      {screen === "menu" && (
-        <div className="card">
-          <h3>Pick a game</h3>
-          <div className="grid" style={{gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))", gap:16}}>
-            <button className="card" style={{textAlign:"left"}} onClick={()=>setScreen("rps")}>
-              <div style={{fontSize:28, marginBottom:8}}>🪨 📄 ✂️</div>
-              <div style={{fontWeight:600}}>Rock • Paper • Scissors (Simulation)</div>
-              <div className="muted">Bouncing agents convert each other on contact.</div>
-            </button>
-            {/* Add more game tiles here later */}
-          </div>
-        </div>
-      )}
+// games/RpsSim.jsx
+console.log("[app] RpsSim.jsx loaded");
 
-      {screen === "rps" && <RpsSim onBack={()=>setScreen("menu")} />}
-    </>
-  );
-}
+const React = window.React; // bind global for Babel+modules
 
-function RpsSim({ onBack }) {
-  // pre-start options
+export default function RpsSim({ onBack }) {
   const [nPerType, setNPerType] = React.useState(12);
-  const [speed, setSpeed] = React.useState(90);     // px/s
-  const [radius, setRadius] = React.useState(12);   // px
+  const [speed, setSpeed] = React.useState(90);
+  const [radius, setRadius] = React.useState(12);
 
-  // run state
   const [started, setStarted] = React.useState(false);
   const [running, setRunning] = React.useState(false);
 
@@ -38,8 +17,8 @@ function RpsSim({ onBack }) {
   const dprRef    = React.useRef(1);
 
   const TYPES   = ["R","P","S"];
-  const ICONS   = { R:"🪨", P:"📄", S:"✂️" }; // icons used for drawing
-  const COLORS  = { R:"#94a3b8", P:"#fbbf24", S:"#f87171" }; // glow tint (subtle)
+  const ICONS   = { R:"🪨", P:"📄", S:"✂️" };
+  const COLORS  = { R:"#94a3b8", P:"#fbbf24", S:"#f87171" };
 
   const rand = (a,b)=> a + Math.random()*(b-a);
   const dist2 = (ax,ay,bx,by)=> (ax-bx)*(ax-bx) + (ay-by)*(ay-by);
@@ -82,7 +61,6 @@ function RpsSim({ onBack }) {
     agentsRef.current = out;
   }
 
-  // init / cleanup
   React.useEffect(() => {
     resizeCanvas();
     const onResize = () => { resizeCanvas(); if (started) placeAgents(); };
@@ -90,7 +68,6 @@ function RpsSim({ onBack }) {
     return () => window.removeEventListener("resize", onResize);
   }, [started]);
 
-  // live speed adjustment
   React.useEffect(() => {
     agentsRef.current.forEach(a => {
       const len = Math.hypot(a.vx, a.vy) || 1;
@@ -99,7 +76,6 @@ function RpsSim({ onBack }) {
     });
   }, [speed]);
 
-  // main loop
   const stepRef = React.useRef((dt)=>{});
   stepRef.current = (dt) => {
     const c = canvasRef.current; if (!c) return;
@@ -109,7 +85,6 @@ function RpsSim({ onBack }) {
     const R = radius * dpr;
     const arr = agentsRef.current;
 
-    // update
     for (let i=0;i<arr.length;i++){
       const a = arr[i];
       a.x += a.vx * dt * dpr;
@@ -120,7 +95,6 @@ function RpsSim({ onBack }) {
       if (a.y > h-R){ a.y = h-R; a.vy = -Math.abs(a.vy); }
     }
 
-    // collisions
     const rr = R*2, rr2 = rr*rr;
     for (let i=0;i<arr.length;i++){
       for (let j=i+1;j<arr.length;j++){
@@ -148,10 +122,8 @@ function RpsSim({ onBack }) {
       }
     }
 
-    // draw
     ctx.clearRect(0,0,w,h);
 
-    // counts HUD
     let cR=0,cP=0,cS=0;
     for (const a of arr){ if(a.type==="R") cR++; else if(a.type==="P") cP++; else cS++; }
     const fg = getComputedStyle(document.documentElement).getPropertyValue("--fg") || "#111";
@@ -160,17 +132,15 @@ function RpsSim({ onBack }) {
     ctx.textAlign = "left"; ctx.textBaseline = "top";
     ctx.fillText(`🪨 ${cR}   📄 ${cP}   ✂️ ${cS}`, 8*dpr, 8*dpr);
 
-    // agents as emoji icons (centered)
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for (const a of arr){
-      // subtle glow behind icon for visibility
       ctx.beginPath();
       ctx.fillStyle = COLORS[a.type] + "33";
       ctx.arc(a.x, a.y, R*0.95, 0, Math.PI*2);
       ctx.fill();
 
       ctx.font = `${R*1.9}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif`;
-      ctx.fillText(ICONS[a.type], a.x, a.y); // draw emoji
+      ctx.fillText(ICONS[a.type], a.x, a.y);
     }
   };
 
@@ -203,7 +173,7 @@ function RpsSim({ onBack }) {
   };
 
   return (
-    <div className="card">
+    <div className="card page">
       <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:8}}>
         <button onClick={onBack}>← Back</button>
         <h3 style={{margin:0}}>Rock • Paper • Scissors — Simulation</h3>
