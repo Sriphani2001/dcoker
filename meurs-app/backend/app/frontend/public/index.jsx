@@ -1,7 +1,9 @@
 /* globals React, ReactDOM */
 const API = "/api";
 const STATIC_BASE = "/static";
-
+// import { Games } from "./games/games.jsx";
+// import RpsSim from "./games/RpsSim.jsx";
+// console.log("[app] index.jsx loaded");
 /* ---------------- utilities ---------------- */
 const escapeHtml = (s) =>
   String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'" :'&#39;'}[m]));
@@ -350,51 +352,82 @@ function Auth({ onLoginSuccess }) {
 
   const signup = async () => {
     if(!u||!p) return notify("Enter username & password");
-    const r = await fetch(`${API}/signup`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,password:p})});
+    const r = await fetch(`${API}/signup`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username:u,password:p})
+    });
     const d = await r.json(); if(!r.ok) return notify(d.detail||"Sign up failed");
     notify("Account created. You can log in now."); setMode("login");
   };
 
   const login = async () => {
     if(!u||!p) return notify("Enter username & password");
-    const r = await fetch(`${API}/login`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,password:p})});
+    const r = await fetch(`${API}/login`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username:u,password:p})
+    });
     const d = await r.json(); if(!r.ok) return notify(d.detail||"Login failed");
-    toast.push(`Welcome, ${u}!`);
-    onLoginSuccess(u);
+    toast.push(`Welcome, ${u}!`); onLoginSuccess(u);
   };
 
   return (
-    <div className="center page">
-      <div className="card" style={{width:"min(560px, 92vw)"}}>
-        <h2>Welcome to Meurs</h2>
+    <div className="auth-hero page">
+      {/* Decorative waves */}
+      <div className="waves" aria-hidden="true">
+        <svg className="w1" viewBox="0 0 1440 320" preserveAspectRatio="none">
+          <path d="M0,128L48,128C96,128,192,128,288,144C384,160,480,192,576,176C672,160,768,96,864,80C960,64,1056,96,1152,128C1248,160,1344,192,1392,208L1440,224L1440,0L0,0Z"></path>
+        </svg>
+        <svg className="w2" viewBox="0 0 1440 320" preserveAspectRatio="none">
+          <path d="M0,192L60,170.7C120,149,240,107,360,101.3C480,96,600,128,720,122.7C840,117,960,75,1080,90.7C1200,107,1320,181,1380,218.7L1440,256L1440,0L0,0Z"></path>
+        </svg>
+        <svg className="w3" viewBox="0 0 1440 320" preserveAspectRatio="none">
+          <path d="M0,256L80,245.3C160,235,320,213,480,213.3C640,213,800,235,960,208C1120,181,1280,107,1360,69.3L1440,32L1440,0L0,0Z"></path>
+        </svg>
+      </div>
+
+      {/* Optional tiny tip at the top-right */}
+      <div className="auth-top-tip">Welcome to Meurs ✨</div>
+
+      {/* Login card */}
+      <div className="login-card">
+        <h2>{mode === "login" ? "Login" : "Create Account"}</h2>
+
+        <div className="row" style={{display:"flex", gap:10}}>
+          <button className={`pill ${mode==="login"?"active":""}`} onClick={()=>setMode("login")}>Login</button>
+          <button className={`pill ${mode==="signup"?"active":""}`} onClick={()=>setMode("signup")}>Sign up</button>
+        </div>
+
         <div className="row">
-          <div className="tabs">
-            <button id="tab-login" className={`tab ${mode==="login"?"active":""}`} onClick={()=>setMode("login")}>Login</button>
-            <button id="tab-signup" className={`tab ${mode==="signup"?"active":""}`} onClick={()=>setMode("signup")}>Sign up</button>
-          </div>
+          <input placeholder="Username" autoComplete="username" value={u} onChange={e=>setU(e.target.value)} />
+        </div>
+        <div className="row">
+          <input type="password" placeholder="Password" autoComplete={mode==="login"?"current-password":"new-password"} value={p} onChange={e=>setP(e.target.value)} />
         </div>
 
         {mode==="login" ? (
-          <div id="login-form">
-            <div className="row"><input placeholder="Username" autoComplete="username" value={u} onChange={e=>setU(e.target.value)} /></div>
-            <div className="row"><input type="password" placeholder="Password" autoComplete="current-password" value={p} onChange={e=>setP(e.target.value)} /></div>
-            <button id="login-btn" onClick={login}>Login</button>
-          </div>
+          <button className="btn-yellow" onClick={login}>Login</button>
         ) : (
-          <div id="signup-form">
-            <div className="row"><input placeholder="Username" autoComplete="username" value={u} onChange={e=>setU(e.target.value)} /></div>
-            <div className="row"><input type="password" placeholder="Password" autoComplete="new-password" value={p} onChange={e=>setP(e.target.value)} /></div>
-            <button id="signup-btn" onClick={signup}>Create account</button>
-          </div>
+          <button className="btn-yellow" onClick={signup}>Create account</button>
         )}
-        <div id="auth-msg" className="row muted">{msg}</div>
+
+        <div className="auth-minilinks">
+          <label style={{opacity:.9}}><input type="checkbox" style={{verticalAlign:"middle"}} /> Remember me</label>
+          <a href="#" onClick={(e)=>e.preventDefault()}>Forgot password?</a>
+          <a href="#" onClick={(e)=>{e.preventDefault(); setMode(m=>m==="login"?"signup":"login");}}>
+            {mode==="login" ? "Create Account" : "Have an account? Login"}
+          </a>
+        </div>
+
+        <div className="row muted" style={{marginTop:8, color:"#fff"}}>{msg}</div>
       </div>
     </div>
   );
 }
 
-/* ---------------- PAGES ---------------- */
 
+/* ---------------- PAGES ---------------- */
 function MusicSection({ onBack }) {
   const [q, setQ] = React.useState("");
   const [musicResults, setMusicResults] = React.useState(null);
@@ -403,6 +436,8 @@ function MusicSection({ onBack }) {
   const [year, setYear] = React.useState("all");
   const [sortDir, setSortDir] = React.useState("desc");
   const [years, setYears] = React.useState([]);
+
+  const [currentTrack, setCurrentTrack] = React.useState(null);
 
   const audioRef = React.useRef(null);
   const searchRef = React.useRef(null);
@@ -463,6 +498,7 @@ function MusicSection({ onBack }) {
     const src = item.playUrl || item.streamUrl || item.stream_url;
     if (!src) return alert("No stream available for this track.");
     if (el.src !== src) el.src = src;
+    setCurrentTrack(item);
     if ('mediaSession' in navigator) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: item.title || "Now playing",
@@ -496,22 +532,42 @@ function MusicSection({ onBack }) {
         </div>
 
         {Array.isArray(musicResults) && musicResults.length > 0 && (
-          <div className="row" style={{display:"flex", gap:12, alignItems:"center", flexWrap:"wrap"}}>
-            <label>Year:&nbsp;
-              <select value={year} onChange={e=>setYear(e.target.value)}>
-                <option value="all">All</option>
-                {years.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </label>
-            <label>Sort:&nbsp;
-              <select value={sortDir} onChange={e=>setSortDir(e.target.value)}>
-                <option value="desc">Newest → Oldest</option>
-                <option value="asc">Oldest → Newest</option>
-              </select>
-            </label>
-          </div>
+          <>
+            <div className="row" style={{display:"flex", gap:12, alignItems:"center", flexWrap:"wrap"}}>
+              <label>Year:&nbsp;
+                <select value={year} onChange={e=>setYear(e.target.value)}>
+                  <option value="all">All</option>
+                  {years.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </label>
+              <label>Sort:&nbsp;
+                <select value={sortDir} onChange={e=>setSortDir(e.target.value)}>
+                  <option value="desc">Newest → Oldest</option>
+                  <option value="asc">Oldest → Newest</option>
+                </select>
+              </label>
+            </div>
+
+            {/* STICKY AUDIO BAR AT TOP OF LIST */}
+            <div className="row player-sticky">
+              {currentTrack && (
+                <div className="muted" style={{marginBottom:6}}>
+                  Now playing: <b>{currentTrack.title || "Untitled"}</b>
+                  {currentTrack.artist ? ` — ${currentTrack.artist}` : ""}
+                </div>
+              )}
+              <audio
+                ref={audioRef}
+                style={{width:"100%"}}
+                controls
+                controlsList="nodownload noplaybackrate"
+                onContextMenu={(e)=>e.preventDefault()}
+              />
+            </div>
+          </>
         )}
 
+        {/* RESULTS */}
         <div id="music-results" className="row">
           {loading ? (
             Array.from({length:6}).map((_,i)=><div className="skeleton" key={i} />)
@@ -525,9 +581,11 @@ function MusicSection({ onBack }) {
                 <div className="media-item">
                   {it.artwork ? <img className="thumb" src={it.artwork} alt="" /> : null}
                   <div className="label">
-                    <div className="title"
+                    <div
+                      className="title"
                       dangerouslySetInnerHTML={{__html:
-                        `${escapeHtml(it.title||"Untitled")}${it.artist?` — <span class="meta">${escapeHtml(it.artist)}</span>`:""}`}} />
+                        `${escapeHtml(it.title||"Untitled")}${it.artist?` — <span class="meta">${escapeHtml(it.artist)}</span>`:""}`}}
+                    />
                     <div className="meta">
                       {it.source?.toUpperCase()}{it.year?` • ${it.year}`:""}
                     </div>
@@ -544,20 +602,12 @@ function MusicSection({ onBack }) {
           )}
         </div>
 
-        <audio
-          ref={audioRef}
-          style={{width:"100%", marginTop:8, display: Array.isArray(musicResults) ? "block":"none"}}
-          controls
-          controlsList="nodownload noplaybackrate"
-          onContextMenu={(e)=>e.preventDefault()}
-        />
-        <div className="muted" style={{marginTop:6}}>
-          Only one song plays at a time. Downloads are disabled in the player UI.
-        </div>
+        {/* IMPORTANT: no audio element here anymore */}
       </div>
     </div>
   );
 }
+
 
 function VideosSection({ onBack }) {
   const [q, setQ] = React.useState("");
