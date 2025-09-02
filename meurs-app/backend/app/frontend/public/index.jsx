@@ -760,19 +760,19 @@ function Home({ currentUser }) {
         <button className="card tile" onClick={() => setScreen("music")}>
           <div className="emoji">🎵</div>
           <div style={{ fontWeight: 600 }}>Music</div>
-          <div className="muted" style={{ color: "#000" }}>Search and play music from online providers.</div>
+          <div className="muted" style={{ color: "#463b3bff" }}>Search and play music from online providers.</div>
         </button>
 
         <button className="card tile" onClick={() => setScreen("videos")}>
           <div className="emoji">🎬</div>
           <div style={{ fontWeight: 600 }}>Videos</div>
-          <div className="muted" style={{ color: "#000" }}>Search and play videos via your API.</div>
+          <div className="muted" style={{ color: "#463b3bff" }}>Search and play videos via your API.</div>
         </button>
 
         <button className="card tile" onClick={() => setScreen("shorts")}>
           <div className="emoji">🎞️</div>
           <div style={{ fontWeight: 600 }}>Shorts</div>
-          <div className="muted" style={{ color: "#000" }}>Coming soon.</div>
+          <div className="muted" style={{ color: "#463b3bff" }}>Coming soon.</div>
         </button>
       </div>
     </div>
