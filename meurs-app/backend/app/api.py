@@ -4,6 +4,7 @@ import httpx
 import datetime as dt
 from pathlib import Path
 from typing import Optional, Dict, Any, List
+from urllib.parse import urlencode  # <-- added
 
 from . import models, schemas
 from .dependencies import get_db
@@ -138,7 +139,7 @@ async def search_videos(
             "source": "pixabay",
             "year": None,  # Pixabay doesn't provide an ISO publish date
             # IMPORTANT: use your range proxy; front-end will play this
-            "stream_url": f"/api/proxy?u={httpx.URL(direct).human_repr()}",
+            "stream_url": "/api/proxy?" + urlencode({"u": direct}),  # <-- changed
         })
 
     return {"items": items}
@@ -184,7 +185,7 @@ async def pixabay_videos_external(q: str = "nature", page: int = 1, per_page: in
             "artist": None,
             "duration": None,
             "thumb": v.get("userImageURL") or v.get("previewURL"),
-            "stream_url": f"/api/proxy?u={httpx.URL(direct).human_repr()}",
+            "stream_url": "/api/proxy?" + urlencode({"u": direct}),  # <-- changed
             "source": "pixabay",
             "license": "Pixabay Content License"
         })

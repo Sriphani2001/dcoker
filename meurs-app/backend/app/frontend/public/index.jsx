@@ -748,31 +748,37 @@ function Home({ currentUser }) {
   }
 
   return (
-    <div className="page">
-      <h2>Home</h2>
-      <div className="muted" style={{marginBottom:8}}>Hi{currentUser?`, ${currentUser}`:""} 👋 — what would you like to do?</div>
-      <div className="card">
-        <h3>Pick a section</h3>
-        <div className="grid" style={{gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))", gap:16}}>
-          <button className="card tile" onClick={()=>setScreen("music")}>
-            <div className="emoji">🎵</div>
-            <div style={{fontWeight:600}}>Music</div>
-            <div className="muted">Search and play music from online providers.</div>
-          </button>
-          <button className="card tile" onClick={()=>setScreen("videos")}>
-            <div className="emoji">🎬</div>
-            <div style={{fontWeight:600}}>Videos</div>
-            <div className="muted">Search and play videos via your API.</div>
-          </button>
-          <button className="card tile" onClick={()=>setScreen("shorts")}>
-            <div className="emoji">🎞️</div>
-            <div style={{fontWeight:600}}>Shorts</div>
-            <div className="muted">Coming soon.</div>
-          </button>
-        </div>
+  <div className="page">
+    <h2>Home</h2>
+    <div className="muted" style={{ marginBottom: 8, color: "#000" }}>
+      Hi{currentUser ? `, ${currentUser}` : ""} 👋 — what would you like to do?
+    </div>
+
+    <div className="card">
+      <h3>Pick a section</h3>
+      <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+        <button className="card tile" onClick={() => setScreen("music")}>
+          <div className="emoji">🎵</div>
+          <div style={{ fontWeight: 600 }}>Music</div>
+          <div className="muted" style={{ color: "#000" }}>Search and play music from online providers.</div>
+        </button>
+
+        <button className="card tile" onClick={() => setScreen("videos")}>
+          <div className="emoji">🎬</div>
+          <div style={{ fontWeight: 600 }}>Videos</div>
+          <div className="muted" style={{ color: "#000" }}>Search and play videos via your API.</div>
+        </button>
+
+        <button className="card tile" onClick={() => setScreen("shorts")}>
+          <div className="emoji">🎞️</div>
+          <div style={{ fontWeight: 600 }}>Shorts</div>
+          <div className="muted" style={{ color: "#000" }}>Coming soon.</div>
+        </button>
       </div>
     </div>
-  );
+  </div>
+);
+
 }
 
 /* DASHBOARD */

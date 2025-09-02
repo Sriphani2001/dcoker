@@ -6,32 +6,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root{
-      --bg:#ffffff; --fg:#111; --muted:#777; --card:#f7f7f7; --border:#e5e5e5; --accent:#3b82f6;
-      --radius:14px; --space:18px; --density:1;
-      --shadow: 0 6px 18px rgba(0,0,0,.08);
+  --bg:#ffffff; --fg:#111; --muted:#777; --card:#f7f7f7; --border:#e5e5e5; --accent:#3b82f6;
+  --radius:14px; --space:18px; --density:1;
+  --shadow: 0 6px 18px rgba(0,0,0,.08);
 
-      /* Glass surfaces (new) */
-      --surface: rgba(255,255,255,.08);
-      --surface-border: rgba(255,255,255,.18);
+  /* Glass surfaces (new) */
+  --surface: rgba(255,255,255,.08);
+  --surface-border: rgba(255,255,255,.18);
 
-      /* Auth hero theme */
-      --hero-bg:#4b2cff;
-      --hero-wave1:#34d399;
-      --hero-wave2:#22d3ee;
-      --hero-wave3:#60a5fa;
-      --glass: rgba(255,255,255,.10);
-      --glass-border: rgba(255,255,255,.25);
-      --yellow:#ffd400;
-      --yellow-text:#1a1a1a;
-    }
-    [data-theme="dark"]{
-      --bg:#0b0e11; --fg:#f5f5f5; --muted:#a0a0a0; --card:#151a20; --border:#293241; --accent:#60a5fa;
-      --shadow: 0 10px 28px rgba(0,0,0,.35);
+  /* Auth hero theme */
+  --hero-bg:#4b2cff;
+  --hero-wave1:#34d399;
+  --hero-wave2:#22d3ee;
+  --hero-wave3:#60a5fa;
+  --glass: rgba(255,255,255,.10);
+  --glass-border: rgba(255,255,255,.25);
+  --yellow:#ffd400;
+  --yellow-text:#1a1a1a;
 
-      /* darker glass in dark theme */
-      --surface: rgba(0,0,0,.35);
-      --surface-border: rgba(255,255,255,.12);
-    }
+  /* Light theme gradient */
+  --app-gradient: linear-gradient(180deg, #724bd4 0%, #7893e4 50%, #b3b6be 100%);
+
+  /* === Background visibility vars (LIGHT) === */
+  --bg-blob-1: 255 163 72;     /* warm orange (R G B) */
+  --bg-blob-2: 64 164 255;     /* azure (R G B) */
+  --bg-blob-alpha: 0.35;       /* inner blob opacity */
+  --bg-blob-alpha-outer: 0.18; /* outer halo opacity */
+  --bg-vignette: radial-gradient(80% 65% at 50% 45%, rgba(0,0,0,0) 55%, rgba(0,0,0,.08) 100%);
+}
+
+[data-theme="dark"]{
+  --bg:#0b0e11; --fg:#f5f5f5; --muted:#a0a0a0; --card:#151a20; --border:#293241; --accent:#60a5fa;
+  --shadow: 0 10px 28px rgba(0,0,0,.35);
+
+  /* darker glass in dark theme */
+  --surface: rgba(0,0,0,.35);
+  --surface-border: rgba(255,255,255,.12);
+
+  /* Dark theme gradient */
+  --app-gradient: linear-gradient(180deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+
+  /* === Background visibility vars (DARK) === */
+  --bg-blob-1: 255 96 180;     /* pink/magenta */
+  --bg-blob-2: 80 180 255;     /* cyan */
+  --bg-blob-alpha: 0.42;
+  --bg-blob-alpha-outer: 0.28;
+  --bg-vignette: radial-gradient(85% 70% at 50% 45%, rgba(0,0,0,0) 50%, rgba(0,0,0,.35) 100%);
+}
+
     *{box-sizing:border-box}
     html,body{height:100%}
     /* transparent so the global background (bg.jsx) shows through */
@@ -84,6 +106,19 @@
     @media (max-width: 900px){
       .tabs{display:none}
       .burger{display:inline-flex}
+    }
+
+    /* Background grain + vignette (now theme-aware) */
+    .site-bg::after{
+      content:"";
+      position:absolute; inset:0;
+      pointer-events:none;
+      background-image:
+        radial-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+        var(--bg-vignette);
+      background-size: 2px 2px, cover;
+      opacity:.35;
+      mix-blend-mode: soft-light;
     }
 
     /* Media players */
@@ -226,14 +261,11 @@
       color:#fff;
     }
     .auth-top-tip{ position:absolute; right:12px; top:12px; color:#fff; opacity:.85; font-size:.9em }
-
-    /* Hide Auth's internal decorative waves; we use the global background instead */
     .auth-hero .waves{ display:none !important; }
 
-    /* Login card: slightly more transparent glass */
     .login-card{
       width:min(420px, 92vw);
-      background:rgba(255,255,255,.06); /* was .10 */
+      background:rgba(255,255,255,.06);
       border:1px solid var(--glass-border);
       border-radius:16px; padding:22px;
       box-shadow:0 20px 60px rgba(0,0,0,.25);
