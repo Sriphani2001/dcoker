@@ -1,12 +1,21 @@
-import httpx
 import asyncio
+from urllib.parse import urlencode
+
+import httpx
 from fastapi import HTTPException, Request
 from fastapi.responses import StreamingResponse
-from starlette.background import BackgroundTask
-from urllib.parse import urlencode
-from .settings import settings
 
-# ---- Audius ----
+from .settings import settings
+from .config import (
+    PIXABAY_API_KEY as CONF_PIXABAY_API_KEY,
+    YT_API_KEY as CONF_YT_API_KEY,          # reserved for future use
+    PEXELS_API_KEY as CONF_PEXELS_API_KEY,  # reserved for future use
+)
+
+# ---------------------------------------------------------------------------
+# Audius
+# ---------------------------------------------------------------------------
+
 async def audius_search_tracks(q: str, limit: int, offset: int):
     async with httpx.AsyncClient(timeout=15) as client:
         host_resp = await client.get("https://api.audius.co")
@@ -51,16 +60,25 @@ async def audius_resolve_stream(track_id: str) -> str:
             resp.raise_for_status()
         except httpx.HTTPStatusError as e:
             detail = e.response.text[:200] if e.response is not None else str(e)
-            raise HTTPException(e.response.status_code if e.response else 502,
-                                f"Audius error: {detail}")
+            raise HTTPException(
+                e.response.status_code if e.response else 502,
+                f"Audius error: {detail}",
+            )
 
+# ---------------------------------------------------------------------------
+# Pixabay
+# ---------------------------------------------------------------------------
 
-# ---- Pixabay ----
 async def pixabay_video_search(q: str, page: int, per_page: int):
-    if not settings.PIXABAY_KEY:
-        raise HTTPException(500, "Pixabay key not configured")
+    """
+    Use env key if present, else fall back to config.py’s hardcoded key.
+    """
+    API_KEY = settings.PIXABAY_KEY or CONF_PIXABAY_API_KEY
+    if not API_KEY:
+        raise HTTPException(500, "Pixabay API key not configured")
+
     params = {
-        "key": settings.PIXABAY_KEY,
+        "key": API_KEY,
         "q": q,
         "page": page,
         "per_page": min(max(per_page, 1), 50),
@@ -68,22 +86,28 @@ async def pixabay_video_search(q: str, page: int, per_page: int):
         "safesearch": "true",
     }
     url = "https://pixabay.com/api/videos/?" + urlencode(params)
+
     async with httpx.AsyncClient(timeout=15) as client:
         r = await client.get(url)
         r.raise_for_status()
         return r.json()
 
+# ---------------------------------------------------------------------------
+# Range proxy core
+# ---------------------------------------------------------------------------
 
-# ---- Range proxy core ----
 async def range_proxy(request: Request, target_url: str):
-    # Forward the Range header if present (audio seeks)
+    """
+    Stream a remote media file to the client with Range support.
+    """
+    # Forward the Range header if present (audio/video seeks)
     fwd_headers = {}
     if rng := request.headers.get("range"):
         fwd_headers["Range"] = rng
 
     client = httpx.AsyncClient(follow_redirects=True, timeout=None)
 
-    # Build & send as a streamed request (do NOT use 'async with client.stream(...)' here)
+    # Build & send as a streamed request
     req = client.build_request("GET", target_url, headers=fwd_headers)
     upstream = await client.send(req, stream=True)
 
@@ -99,15 +123,12 @@ async def range_proxy(request: Request, target_url: str):
     async def body():
         try:
             async for chunk in upstream.aiter_bytes():
-                # Optionally guard against empty heartbeats:
                 if not chunk:
                     continue
                 yield chunk
         except (httpx.StreamClosed, asyncio.CancelledError):
-            # Upstream closed early or client went away; stop quietly.
             return
         finally:
-            # Always close network resources
             await upstream.aclose()
             await client.aclose()
 

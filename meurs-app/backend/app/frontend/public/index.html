@@ -19,7 +19,7 @@
   --hero-wave1:#34d399;
   --hero-wave2:#22d3ee;
   --hero-wave3:#60a5fa;
-  --glass: rgba(255,255,255,.10);
+  --glass: rgba(255, 255, 255, 0.226);
   --glass-border: rgba(255,255,255,.25);
   --yellow:#ffd400;
   --yellow-text:#1a1a1a;
@@ -62,7 +62,14 @@
     button{cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--fg);border-radius:10px;padding:10px 14px;transition:.2s ease; position:relative; overflow:hidden}
     button:hover{transform:translateY(-1px); box-shadow:var(--shadow)}
     input,select,textarea{border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--fg);padding:10px;transition:.2s ease}
-    input:focus,select:focus,textarea:focus{outline:none;box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent)}
+
+    /* REPLACED color-mix() with outline + subtle shadow for compatibility */
+    input:focus,select:focus,textarea:focus{
+      outline:none;
+      box-shadow:0 0 0 3px rgba(59,130,246,.22); /* fallback */
+      /* accent-aware fallback: if you want dynamic hues, set this from JS too */
+    }
+
     textarea{resize:vertical}
 
     .container{max-width:1000px;margin:0 auto;padding:calc(var(--space)*var(--density))}
@@ -97,8 +104,14 @@
     .brand{font-weight:800;letter-spacing:.3px}
     .tabs{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .tab{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid transparent;transition:.2s ease; position:relative; overflow:hidden}
+
     .tab.active{border-color:var(--surface-border);background:var(--surface)}
-    .tab:not(.active):hover{background:color-mix(in oklab, var(--accent) 12%, transparent); border-color:color-mix(in oklab, var(--accent) 40%, var(--border))}
+    /* REPLACED color-mix() with simpler accent hover */
+    .tab:not(.active):hover{
+      background:rgba(59,130,246,.12);
+      border-color:rgba(59,130,246,.4);
+    }
+
     .spacer{flex:1}
     .pill{padding:8px 12px;border:1px solid var(--border);border-radius:999px;display:flex;align-items:center;gap:8px}
     .icon{font-size:18px}
@@ -229,9 +242,12 @@
 
     /* Tiles */
     .tile{cursor:pointer; text-align:left; transition:.25s ease; border:1px solid var(--surface-border); background:var(--surface); backdrop-filter:blur(8px) saturate(140%) }
-    .tile:hover{transform:translateY(-2px) scale(1.01); box-shadow:var(--shadow); border-color:color-mix(in oklab, var(--accent) 40%, var(--surface-border))}
-    .tile .emoji{font-size:28px;margin-bottom:8px; display:inline-block; transform:translateY(0); transition:.25s}
-    .tile:hover .emoji{transform:translateY(-4px) rotate(-3deg)}
+    /* REPLACED color-mix() border-color on hover */
+    .tile:hover{
+      transform:translateY(-2px) scale(1.01);
+      box-shadow:var(--shadow);
+      border-color:rgba(59,130,246,.4);
+    }
 
     /* Page transition */
     .page{animation:fadeSlide .35s ease both}
@@ -245,11 +261,15 @@
     .progress{position:relative;height:3px;background:transparent;border-radius:6px;overflow:hidden;margin:-6px -6px 10px}
     .progress.active::before{content:"";position:absolute;height:100%;width:35%;left:-35%;animation:prog 1s infinite ease; background:var(--accent); border-radius:6px}
     @keyframes prog{to{left:100%}}
-    .ripple{position:absolute;border-radius:999px;transform:scale(0);animation:rip .6s ease; background:color-mix(in oklab, var(--accent) 30%, transparent)}
+
+    /* REPLACED color-mix() with opacity for ripple */
+    .ripple{position:absolute;border-radius:999px;transform:scale(0);animation:rip .6s ease; background:var(--accent); opacity:.3}
     @keyframes rip{to{transform:scale(5);opacity:0}}
+
     .toast-wrap{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:10px;z-index:60}
     .toast{background:var(--surface);border:1px solid var(--surface-border);box-shadow:var(--shadow);padding:10px 12px;border-radius:12px;min-width:200px;animation:fadeSlide .25s ease both; backdrop-filter:blur(8px) saturate(140%)}
-    .toast.ok{border-color:color-mix(in oklab, var(--accent) 50%, var(--surface-border))}
+    /* REPLACED color-mix() on border-color */
+    .toast.ok{border-color:var(--accent)}
     .toast.err{border-color:#f25b5b}
     .ghost{border:1px dashed var(--surface-border)}
 
@@ -309,6 +329,12 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <!-- Babel so you can write JSX in a single file + allow imports -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Load game components first so they register as globals on window -->
+  <script
+    type="text/babel"
+    data-presets="env,react"
+    src="./games.jsx"></script>
 
   <!-- Your React app -->
   <script
