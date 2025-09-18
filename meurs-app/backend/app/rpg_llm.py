@@ -6,10 +6,14 @@ import json
 import random
 
 # ========== OpenAI-compatible config (Groq/OpenRouter/Together/etc.) ==========
-LLM_BASE = os.getenv("LLM_BASE", "").rstrip("/")
-LLM_API_KEY = os.getenv("LLM_API_KEY", "")
-LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
+# LLM_BASE = os.getenv("LLM_BASE", "").rstrip("/")
+# LLM_API_KEY = os.getenv("LLM_API_KEY", "")
+# LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
 LLM_ENABLED = bool(LLM_BASE and LLM_API_KEY)
+LLM_BASE="https://api.groq.com/openai/v1"
+LLM_API_KEY="***REMOVED***"
+LLM_MODEL="llama-3.1-8b-instant"
+
 
 # -----------------------------------------------------------------------------
 # Companion one-liner (flavor text)
