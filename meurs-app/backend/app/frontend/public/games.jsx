@@ -43,7 +43,6 @@ function RpsSim({ onBack }) {
     const R = radius * dprRef.current;
     const out = [];
     const maxTries = 600;
-
     for (const t of TYPES) {
       for (let i=0;i<nPerType;i++) {
         let x,y, tries=0;
@@ -137,7 +136,6 @@ function RpsSim({ onBack }) {
       ctx.fillStyle = COLORS[a.type] + "33";
       ctx.arc(a.x, a.y, R*0.95, 0, Math.PI*2);
       ctx.fill();
-
       ctx.font = `${R*1.9}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",system-ui,sans-serif`;
       ctx.fillText(ICONS[a.type], a.x, a.y);
     }
@@ -227,9 +225,268 @@ function RpsSim({ onBack }) {
   );
 }
 
+/* ====== Survival RPG (text-based) ====== */
+function StatBar({ username, day, hp, max_hp, stamina, max_stamina, deltas }) {
+  const fmt = v => (v>0 ? `+${v}` : v);
+  const tone = v => (v>0 ? "#16a34a" : v<0 ? "#dc2626" : "var(--muted)");
+  return (
+    <div style={{
+      display:"flex", gap:12, alignItems:"center",
+      padding:"10px 12px", borderBottom:"1px solid var(--surface-border)"
+    }}>
+      <strong>{username}</strong>
+      <div>Day: {day}/4</div>
+      <div>HP: {hp}/{max_hp} {deltas && deltas.hp!==0 && <small style={{color:tone(deltas.hp)}}>({fmt(deltas.hp)})</small>}</div>
+      <div>Stamina: {stamina}/{max_stamina} {deltas && deltas.stamina!==0 && <small style={{color:tone(deltas.stamina)}}>({fmt(deltas.stamina)})</small>}</div>
+    </div>
+  );
+}
+
+function Backpack({ items }) {
+  return (
+    <div className="card" style={{padding:12}}>
+      <div style={{fontWeight:700, marginBottom:6}}>Backpack</div>
+      {items?.length ? (
+        <ul style={{margin:0, paddingLeft:18}}>
+          {items.map(it => <li key={it}>{it}</li>)}
+        </ul>
+      ) : <div className="muted">Empty</div>}
+    </div>
+  );
+}
+
+function SurvivalGame({ onBack }) {
+  // Start options
+  const [username, setUsername] = React.useState("Scientist");
+  const [mode, setMode] = React.useState("normal");         // easy | normal | hard
+  const [mislead, setMislead] = React.useState(35);         // 0..100 (%)
+  const [encountersOn, setEncountersOn] = React.useState(true);
+  const [shuffleOptions, setShuffleOptions] = React.useState(true);
+
+  // Session/game state
+  const [sessionId, setSessionId] = React.useState(null);
+  const [state, setState] = React.useState(null);
+  const [narration, setNarration] = React.useState("");
+  const [companion, setCompanion] = React.useState("");
+  const [hint, setHint] = React.useState(null);
+  const [options, setOptions] = React.useState([]);
+  const [isOver, setIsOver] = React.useState(false);
+  const [ending, setEnding] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState("");
+
+  // bars delta
+  const [prevBars, setPrevBars] = React.useState({ hp: null, stamina: null });
+  const [deltas, setDeltas] = React.useState({ hp: 0, stamina: 0 });
+
+  function buildSeed() {
+    // pack chosen options into a seed string the backend could parse later
+    // (safe even if backend ignores; pydantic will ignore extra fields except 'seed')
+    const ts = Date.now();
+    const enc = encountersOn ? 1 : 0;
+    const shf = shuffleOptions ? 1 : 0;
+    return `mode=${mode};mp=${mislead};enc=${enc};shuffle=${shf};ts=${ts}`;
+  }
+
+  function applyResponse(j) {
+    // deltas
+    setDeltas({
+      hp: prevBars.hp == null ? 0 : (j.state.hp - prevBars.hp),
+      stamina: prevBars.stamina == null ? 0 : (j.state.stamina - prevBars.stamina),
+    });
+    setPrevBars({ hp: j.state.hp, stamina: j.state.stamina });
+
+    // narration + companion + hint
+    setState(j.state);
+    setNarration(j.narration);
+    setCompanion(j.companion || "");
+    setHint(j.hint || null);
+
+    // options (maybe shuffle)
+    let opts = j.options || [];
+    if (shuffleOptions && opts.length > 1) {
+      opts = [...opts].sort(()=>Math.random() - 0.5);
+    }
+    setOptions(opts);
+
+    setIsOver(j.is_over);
+    setEnding(j.ending || null);
+  }
+
+  async function startGame() {
+    setBusy(true); setErr("");
+    try {
+      const r = await fetch("/api/rpg/survival/new", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ username, seed: buildSeed() })
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const j = await r.json();
+      setSessionId(j.session_id);
+      applyResponse(j);
+    } catch (e) {
+      setErr(String(e));
+    } finally { setBusy(false); }
+  }
+
+  async function choose(optionId) {
+    if (!sessionId) return;
+    setBusy(true); setErr("");
+    try {
+      const r = await fetch("/api/rpg/survival/choose", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ session_id: sessionId, option_id: optionId })
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const j = await r.json();
+      applyResponse(j);
+    } catch (e) {
+      setErr(String(e));
+    } finally { setBusy(false); }
+  }
+
+  function summaryEnding(e) {
+    if (e === "rescued") return "You were rescued! 🎉";
+    if (e === "dead") return "You died. 💀";
+    if (e === "timeout") return "Time ran out. ⌛";
+    return "";
+  }
+
+  function resetToMenu() {
+    setSessionId(null);
+    setOptions([]);
+    setHint(null);
+    setPrevBars({ hp: null, stamina: null });
+    setDeltas({ hp: 0, stamina: 0 });
+  }
+
+  return (
+    <div className="card page">
+      <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:8}}>
+        <button onClick={onBack}>← Back</button>
+        <h3 style={{margin:0}}>RPG — Survival (Text)</h3>
+      </div>
+
+      {!sessionId ? (
+        <>
+          <div className="row" style={{display:"grid", gap:12}}>
+            <div style={{display:"flex", gap:12, flexWrap:"wrap", alignItems:"center"}}>
+              <label>Username:&nbsp;
+                <input value={username} onChange={e=>setUsername(e.target.value)} />
+              </label>
+            </div>
+
+            {/* Game Options */}
+            <div className="card" style={{display:"grid", gap:10}}>
+              <div style={{fontWeight:700}}>Game Options</div>
+              <div style={{display:"flex", gap:16, flexWrap:"wrap", alignItems:"center"}}>
+                <label>Mode:&nbsp;
+                  <select value={mode} onChange={e=>setMode(e.target.value)}>
+                    <option value="easy">Easy</option>
+                    <option value="normal">Normal</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                </label>
+
+                <label>Misdirection:&nbsp;
+                  <input type="range" min="0" max="100" value={mislead} onChange={e=>setMislead(+e.target.value)} />
+                  <span className="muted" style={{marginLeft:6}}>{mislead}%</span>
+                </label>
+
+                <label style={{display:"inline-flex", gap:8, alignItems:"center"}}>
+                  <input type="checkbox" checked={encountersOn} onChange={e=>setEncountersOn(e.target.checked)} />
+                  LLM Encounters
+                </label>
+
+                <label style={{display:"inline-flex", gap:8, alignItems:"center"}}>
+                  <input type="checkbox" checked={shuffleOptions} onChange={e=>setShuffleOptions(e.target.checked)} />
+                  Shuffle Choice Order
+                </label>
+              </div>
+
+              <div className="muted">
+                Mode sets intended danger. Misdirection controls how often advice may mislead. Encounters add random micro-events. Shuffle randomizes button order each turn.
+              </div>
+            </div>
+
+            <div>
+              <button onClick={startGame} disabled={busy}>
+                {busy ? "Starting..." : "Start ▶"}
+              </button>
+              {err && <div className="muted" style={{color:"crimson", marginTop:8}}>{err}</div>}
+            </div>
+          </div>
+
+          <div className="muted" style={{marginTop:8}}>
+            Goal: move east across the island and signal a boat within 4 days. Wrong turns are short dead ends.
+          </div>
+        </>
+      ) : (
+        <>
+          <StatBar
+            username={state.username}
+            day={state.day}
+            hp={state.hp}
+            max_hp={state.max_hp}
+            stamina={state.stamina}
+            max_stamina={state.max_stamina}
+            deltas={deltas}
+          />
+
+          <div style={{display:"grid", gridTemplateColumns:"1fr 260px", gap:16, marginTop:12}}>
+            <div>
+              <div style={{
+                whiteSpace:"pre-wrap", lineHeight:1.5, padding:12,
+                border:"1px solid var(--surface-border)", borderRadius:12,
+                background:"var(--surface)", backdropFilter:"blur(8px) saturate(140%)"
+              }}>
+                {narration}
+              </div>
+
+              {companion && (
+                <div style={{
+                  marginTop:8, padding:10, borderLeft:"4px solid var(--accent)",
+                  background:"var(--surface)", borderRadius:10
+                }}>
+                  <em>Companion:</em> {companion}
+                </div>
+              )}
+
+              {/* Optional hint (can be accurate, vague, or misleading) */}
+              {hint?.text && (
+                <div className="muted" style={{marginTop:6}}>
+                  <em>Hint:</em> {hint.text}
+                  {hint.tone && <span> <small>({hint.tone})</small></span>}
+                </div>
+              )}
+
+              <div style={{display:"flex", gap:8, flexWrap:"wrap", marginTop:12}}>
+                {!isOver ? options.map(o => (
+                  <button key={o.id} onClick={()=>choose(o.id)} disabled={busy}>{o.label}</button>
+                )) : (
+                  <>
+                    <div style={{fontWeight:700}}>{summaryEnding(ending)}</div>
+                    <button onClick={resetToMenu}>Play Again</button>
+                  </>
+                )}
+              </div>
+
+              {err && <div className="muted" style={{color:"crimson", marginTop:8}}>{err}</div>}
+            </div>
+
+            <Backpack items={state.inventory} />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ========== Games ==========
 function Games() {
-  const [screen, setScreen] = React.useState("menu"); // 'menu' | 'rps'
+  const [screen, setScreen] = React.useState("menu"); // 'menu' | 'rps' | 'rpg'
   return (
     <div className="page">
       <h2>Games</h2>
@@ -242,15 +499,24 @@ function Games() {
               <div style={{fontWeight:600}}>Rock • Paper • Scissors (Simulation)</div>
               <div className="muted">Bouncing agents convert each other on contact.</div>
             </button>
+
+            {/* New Survival RPG tile */}
+            <button className="card tile" onClick={()=>setScreen("rpg")}>
+              <div className="emoji">🏝️ 🧪 🤖</div>
+              <div style={{fontWeight:600}}>RPG — Survival (Text)</div>
+              <div className="muted">Guide the scientist east; wrong turns are dead ends.</div>
+            </button>
           </div>
         </div>
       )}
 
       {screen === "rps" && <RpsSim onBack={()=>setScreen("menu")} />}
+      {screen === "rpg" && <SurvivalGame onBack={()=>setScreen("menu")} />}
     </div>
   );
 }
 
 // Expose to other scripts (no bundler)
 window.RpsSim = RpsSim;
+window.SurvivalGame = SurvivalGame;
 window.Games  = Games;

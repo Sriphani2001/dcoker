@@ -774,7 +774,7 @@ function Home({ currentUser }) {
         <button className="card tile" onClick={() => setScreen("videos")}>
           <div className="emoji">🎬</div>
           <div style={{ fontWeight: 600 }}>Videos</div>
-          <div className="muted" style={{ color: "#463b3b3f" }}>Search and play videos via your API.</div>
+          <div className="muted" style={{ color: "#a08d8d3f" }}>Search and play videos via your API.</div>
         </button>
 
         <button className="card tile" onClick={() => setScreen("shorts")}>
