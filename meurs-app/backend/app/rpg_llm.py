@@ -11,10 +11,6 @@ LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
 LLM_ENABLED = bool(LLM_BASE and LLM_API_KEY)
 
-
-# -----------------------------------------------------------------------------
-# Companion one-liner (flavor text)
-# -----------------------------------------------------------------------------
 SYSTEM = (
     "You are an onboard survival assistant. Give one short sentence of pragmatic advice "
     "for the player's current situation. No emojis, no JSON."
