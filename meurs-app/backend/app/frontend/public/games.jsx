@@ -485,33 +485,123 @@ function SurvivalGame({ onBack }) {
 }
 
 // ========== Games ==========
+// ========== Games ==========
 function Games() {
-  const [screen, setScreen] = React.useState("menu"); // 'menu' | 'rps' | 'rpg'
+  const [screen, setScreen] = React.useState("menu"); // 'menu' | 'rps' | 'rpg' | 'llm'
   return (
     <div className="page">
       <h2>Games</h2>
+
       {screen === "menu" && (
         <div className="card">
           <h3>Pick a game</h3>
-          <div className="grid" style={{gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))", gap:16}}>
-            <button className="card tile" onClick={()=>setScreen("rps")}>
+          <div
+            className="grid"
+            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}
+          >
+            <button className="card tile" onClick={() => setScreen("rps")}>
               <div className="emoji">🪨 📄 ✂️</div>
-              <div style={{fontWeight:600}}>Rock • Paper • Scissors (Simulation)</div>
+              <div style={{ fontWeight: 600 }}>Rock • Paper • Scissors (Simulation)</div>
               <div className="muted">Bouncing agents convert each other on contact.</div>
             </button>
 
-            {/* New Survival RPG tile */}
-            <button className="card tile" onClick={()=>setScreen("rpg")}>
+            <button className="card tile" onClick={() => setScreen("rpg")}>
               <div className="emoji">🏝️ 🧪 🤖</div>
-              <div style={{fontWeight:600}}>RPG — Survival (Text)</div>
+              <div style={{ fontWeight: 600 }}>RPG — Survival (Text)</div>
               <div className="muted">Guide the scientist east; wrong turns are dead ends.</div>
+            </button>
+
+            {/* LLM Diagnostics tile */}
+            <button className="card tile" onClick={() => setScreen("llm")}>
+              <div className="emoji">🧪🤖</div>
+              <div style={{ fontWeight: 600 }}>LLM Diagnostics</div>
+              <div className="muted">Connectivity &amp; round-trip test</div>
             </button>
           </div>
         </div>
       )}
 
-      {screen === "rps" && <RpsSim onBack={()=>setScreen("menu")} />}
-      {screen === "rpg" && <SurvivalGame onBack={()=>setScreen("menu")} />}
+      {screen === "rps" && <RpsSim onBack={() => setScreen("menu")} />}
+      {screen === "rpg" && <SurvivalGame onBack={() => setScreen("menu")} />}
+      {screen === "llm" && <LlmDiagnostics onBack={() => setScreen("menu")} />}
+    </div>
+  );
+}
+
+
+/* LlmDiagnostics.jsx */
+function LlmDiagnostics({ onBack }) {
+  const [result, setResult] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState("");
+
+  async function run() {
+    setBusy(true); setErr(""); setResult(null);
+    try {
+      const r = await fetch("/api/llm/test");
+      if (!r.ok) throw new Error(await r.text());
+      const j = await r.json();
+      setResult(j);
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const badge = (ok) => (
+    <span style={{
+      padding:"2px 8px", borderRadius:999,
+      background: ok ? "rgba(22,163,74,.15)" : "rgba(220,38,38,.15)",
+      color: ok ? "#16a34a" : "#dc2626",
+      border: `1px solid ${ok ? "#16a34a33" : "#dc262633"}`
+    }}>
+      {ok ? "OK" : "FAIL"}
+    </span>
+  );
+
+  return (
+    <div className="card page">
+      <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:8}}>
+        <button onClick={onBack}>← Back</button>
+        <h3 style={{margin:0}}>LLM Diagnostics</h3>
+      </div>
+
+      <div className="card" style={{display:"grid", gap:12}}>
+        <div className="muted">
+          Quick connectivity and behavior check for your configured LLM.
+        </div>
+        <button onClick={run} disabled={busy}>{busy ? "Testing…" : "Run Test ▶"}</button>
+
+        {err && <div className="muted" style={{color:"crimson"}}>{err}</div>}
+
+        {result && (
+          <div className="card" style={{display:"grid", gap:8}}>
+            <div style={{display:"flex", alignItems:"center", gap:10}}>
+              <strong>Status:</strong> {badge(result.ok)}
+              {!result.configured && <span className="muted">Not configured</span>}
+            </div>
+            <div className="muted">Model: <code>{result.model || "?"}</code></div>
+            <div className="muted">Base: <code>{result.provider_base || "?"}</code></div>
+            <div className="muted">Latency: {result.latency_ms != null ? `${result.latency_ms} ms` : "—"}</div>
+            {typeof result.encounter_ok === "boolean" && (
+              <div className="muted">Encounter JSON: {badge(result.encounter_ok)}</div>
+            )}
+            {result.sample && (
+              <div style={{
+                padding:10, border:"1px solid var(--surface-border)",
+                borderRadius:10, background:"var(--surface)"
+              }}>
+                <div style={{fontWeight:600, marginBottom:4}}>Sample reply</div>
+                <div>{result.sample}</div>
+              </div>
+            )}
+            {result.error && (
+              <div className="muted" style={{color:"crimson"}}>Error: {result.error}</div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

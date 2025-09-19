@@ -4,6 +4,9 @@ import os
 import httpx
 import json
 import random
+# from __future__ import annotations
+# from typing import Dict, Any
+import time
 
 # ========== OpenAI-compatible config (Groq/OpenRouter/Together/etc.) ==========
 LLM_BASE = os.getenv("LLM_BASE", "").rstrip("/")
@@ -138,3 +141,89 @@ async def generate_encounter(state: Dict[str, Any], node_id: str, difficulty: st
             "complication": {"hp": -1, "stamina": -1, "day_advance": 0, "add": []},
             "hint": {"tone": "vague", "text": "I can’t be sure—east still feels right."},
         }
+
+# rpg_llm.py
+
+
+# ... keep your existing imports/constants ...
+
+async def llm_diagnostics() -> Dict[str, Any]:
+    """
+    Returns a small JSON object indicating whether the LLM is reachable and behaving.
+    {
+      configured: bool,
+      ok: bool,
+      latency_ms: float|None,
+      provider_base: str,
+      model: str,
+      sample: str|None,
+      error: str|None,
+      encounter_ok: bool|None
+    }
+    """
+    if not LLM_ENABLED:
+        return {
+            "configured": False,
+            "ok": False,
+            "latency_ms": None,
+            "provider_base": LLM_BASE,
+            "model": LLM_MODEL,
+            "sample": None,
+            "error": "Missing LLM_BASE or LLM_API_KEY",
+            "encounter_ok": None,
+        }
+
+    payload = {
+        "model": LLM_MODEL,
+        "messages": [
+            {"role": "system", "content": "Reply with the single word: OK"},
+            {"role": "user", "content": "Say OK"}
+        ],
+        "temperature": 0.0,
+        "max_tokens": 3,
+    }
+
+    t0 = time.monotonic()
+    sample = None
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(
+                f"{LLM_BASE}/chat/completions",
+                headers={"Authorization": f"Bearer {LLM_API_KEY}"},
+                json=payload
+            )
+            r.raise_for_status()
+            j = r.json()
+            sample = (j["choices"][0]["message"]["content"] or "").strip()
+        latency_ms = round((time.monotonic() - t0) * 1000, 1)
+        ok = sample.upper().startswith("OK")
+        diag = {
+            "configured": True,
+            "ok": ok,
+            "latency_ms": latency_ms,
+            "provider_base": LLM_BASE,
+            "model": LLM_MODEL,
+            "sample": sample,
+            "error": None if ok else "Unexpected reply",
+        }
+    except Exception as e:
+        return {
+            "configured": True,
+            "ok": False,
+            "latency_ms": None,
+            "provider_base": LLM_BASE,
+            "model": LLM_MODEL,
+            "sample": sample,
+            "error": str(e),
+            "encounter_ok": None,
+        }
+
+    # OPTIONAL: exercise the stricter JSON path to catch formatting issues early
+    try:
+        fake_state = {"day":1,"hp":8,"stamina":7,"inventory":["field_kit"]}
+        _ = await generate_encounter(fake_state, "jungle_track", "normal", 0.2)
+        diag["encounter_ok"] = True
+    except Exception:
+        diag["encounter_ok"] = False
+
+    return diag
