@@ -3,62 +3,70 @@ from typing import Dict, Any, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from .rpg_survival_game import (
-    new_session, get_session, public_state,
-    apply_choice, _run_encounter_and_merge  # NOTE: apply_choice is async now
-)
+from .rpg_survival_game import new_session, get_session, public_state, apply_action
 from .rpg_llm import ai_comment
 
 router = APIRouter(prefix="/api/rpg/survival", tags=["rpg-survival"])
 
 class NewGameReq(BaseModel):
-  username: str
-  seed: Optional[str] = None
+    username: str
+    seed: Optional[str] = None
 
-class ChooseReq(BaseModel):
-  session_id: str
-  option_id: str
+class ActReq(BaseModel):
+    session_id: str
+    action_id: str
+
+class ChooseReq(BaseModel):  # legacy
+    session_id: str
+    option_id: str
+
+def _payload(session_id: str, state: Dict[str, Any], enc: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "session_id": session_id,
+        "state": public_state(state),
+        "title": enc.get("title"),
+        "narration": enc.get("narration"),
+        "options": enc.get("options", []),
+        "companion": state.get("companion", ""),  # filled per-request below
+        "hint": enc.get("hint"),
+        "future_moves": enc.get("future_moves", []),   # NEW: visible future routes
+        "is_over": state["is_over"],
+        "ending": state.get("ending"),
+    }
 
 @router.post("/new")
 async def start_game(payload: NewGameReq) -> Dict[str, Any]:
-    sid, state, node = new_session(username=payload.username, seed=payload.seed)
-    narration = node["narration"]
-    # Run an initial encounter so turn 1 already has spice
-    enc_text = await _run_encounter_and_merge(state, state["node_id"])
-    if enc_text:
-        narration = narration + "\n\n" + enc_text
-    companion = await ai_comment(state, narration=narration)
+    sid, state, enc = await new_session(username=payload.username, seed=payload.seed)
+    companion = await ai_comment(state, narration=enc["narration"])
+    state["companion"] = companion
+    out = _payload(sid, state, enc)
+    out["companion"] = companion
+    return out
 
-    return {
-        "session_id": sid,
-        "state": public_state(state),
-        "narration": narration,
-        "companion": companion,
-        "options": node["options"],
-        "is_over": state["is_over"],
-        "ending": state.get("ending"),
-        "hint": state.get("last_hint", None),
-    }
+@router.post("/act")
+async def act(payload: ActReq) -> Dict[str, Any]:
+    state = get_session(payload.session_id)
+    if not state:
+        raise HTTPException(404, "Session not found")
+    enc, err = await apply_action(state, payload.action_id)
+    if err:
+        raise HTTPException(400, err)
+    companion = await ai_comment(state, narration=enc["narration"])
+    state["companion"] = companion
+    out = _payload(payload.session_id, state, enc)
+    out["companion"] = companion
+    return out
 
-@router.post("/choose")
+@router.post("/choose")  # back-compat for existing frontend
 async def choose(payload: ChooseReq) -> Dict[str, Any]:
     state = get_session(payload.session_id)
     if not state:
         raise HTTPException(404, "Session not found")
-
-    node, narration, err = await apply_choice(state, payload.option_id)  # await (async)
+    enc, err = await apply_action(state, payload.option_id)  # treat option_id == action_id
     if err:
         raise HTTPException(400, err)
-
-    companion = await ai_comment(state, narration=narration)
-
-    return {
-        "session_id": payload.session_id,
-        "state": public_state(state),
-        "narration": narration,
-        "companion": companion,
-        "options": node["options"] if node else [],
-        "is_over": state["is_over"],
-        "ending": state.get("ending"),
-        "hint": state.get("last_hint", None),
-    }
+    companion = await ai_comment(state, narration=enc["narration"])
+    state["companion"] = companion
+    out = _payload(payload.session_id, state, enc)
+    out["companion"] = companion
+    return out
